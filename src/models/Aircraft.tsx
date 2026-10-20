@@ -3,7 +3,8 @@ import type { DependencyList } from 'react';
 import { useThree } from '@react-three/fiber';
 import { Block } from '../scene/Building';
 import { BufferGeometry, Euler, Float32BufferAttribute, InstancedMesh, Matrix4, Quaternion,
-  Shape, ShapeGeometry, TorusGeometry, CylinderGeometry, Vector3 } from 'three';
+  Shape, ShapeGeometry, TorusGeometry, CylinderGeometry, Vector3, Group, Mesh, MeshStandardMaterial } from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { MeshStandardMaterialParameters } from 'three';
 import { bodyAt, bodyPatch, cockpitWindshieldGeometry, doorPositionsM, fanBladeGeometry, fuselageGeometry,
   nacelleGeometry, polygonPrism, stabilizerGeometry, tailFinGeometry, wingGeometry } from './aircraft-parts';
@@ -292,7 +293,7 @@ function Engines({ variant }: { variant: AircraftVariant }) {
   return <group name="engines">
     {[-1, 1].map(side => <group key={side} name={side === 1 ? 'engine-right' : 'engine-left'}>
       <mesh geometry={pylon} position={[0, 0, side * 11]} castShadow><meshStandardMaterial {...finishes.wing} /></mesh>
-      {['engine-install', 'cabin', 'complete', 'paint'].includes(variant) &&
+      {['engine-install', 'cabin', 'ready-for-paint', 'complete', 'paint'].includes(variant) &&
         <group position={[3.2, 2.95, side * 11]}><Engine /></group>}
     </group>)}
   </group>;
@@ -369,13 +370,78 @@ function SupportStrut({ from, to }: {
   </mesh>;
 }
 
-export const Aircraft = memo(function Aircraft({ variant, positionM, id, rotationY }: {
+export const Aircraft = memo(function Aircraft({ variant, positionM, id, rotationY, components }: {
   variant: AircraftVariant; positionM: [number, number, number]; id: string; rotationY?: number;
+  components?: { wings: boolean; tail: boolean; gear: boolean; engines: boolean };
 }) {
-  const onWheels = ['engine-install', 'cabin', 'complete', 'paint'].includes(variant);
-  return <group name={id} position={positionM} rotation={[0, rotationY ?? 0, 0]}>
+  const root = useRef<Group>(null);
+  const invalidate = useThree(state => state.invalidate);
+  useLayoutEffect(() => {
+    const parent = root.current!;
+    parent.updateWorldMatrix(true, true);
+    const inverse = parent.matrixWorld.clone().invert();
+    const matrix = new Matrix4();
+    const batches = new Map<string, { parts: BufferGeometry[]; material: MeshStandardMaterial;
+      sources: Mesh[]; shadow: boolean; receive: boolean }>();
+    parent.traverse(object => {
+      if (!(object instanceof Mesh) || object instanceof InstancedMesh || !object.visible
+        || !(object.material instanceof MeshStandardMaterial) || object.material.map) return;
+      const material = object.material;
+      const shape: BufferGeometry = object.geometry.clone();
+      matrix.multiplyMatrices(inverse, object.matrixWorld);
+      shape.applyMatrix4(matrix);
+      if (matrix.determinant() < 0) {
+        // Renderer flips reflected meshes individually; preserve winding after baking.
+        if (!shape.index) shape.setIndex(Array.from({ length: shape.attributes.position.count }, (_, index) => index));
+        const indices = shape.index!;
+        for (let index = 0; index < indices.count; index += 3) {
+          const second = indices.getX(index + 1);
+          indices.setX(index + 1, indices.getX(index + 2));
+          indices.setX(index + 2, second);
+        }
+      }
+      const key = JSON.stringify([material.color.getHex(), material.roughness, material.metalness,
+        material.side, material.opacity, material.transparent, material.depthWrite, material.flatShading,
+        material.emissive.getHex(), material.emissiveIntensity, material.toneMapped,
+        object.castShadow, object.receiveShadow, Boolean(shape.index),
+        Object.entries(shape.attributes).map(([name, value]) => [name, value.itemSize, value.normalized]).sort()]);
+      let batch = batches.get(key);
+      if (!batch) {
+        batch = { parts: [], material, sources: [], shadow: object.castShadow, receive: object.receiveShadow };
+        batches.set(key, batch);
+      }
+      batch.parts.push(shape);
+      batch.sources.push(object);
+    });
+    const combined: Mesh[] = [];
+    const hidden: Mesh[] = [];
+    for (const batch of batches.values()) {
+      const geometry = mergeGeometries(batch.parts);
+      batch.parts.forEach(part => part.dispose());
+      if (!geometry) continue; // Keep source geometry visible if an unsupported attribute is added later.
+      const mesh = new Mesh(geometry, batch.material);
+      mesh.name = 'combined-aircraft-detail';
+      mesh.castShadow = batch.shadow;
+      mesh.receiveShadow = batch.receive;
+      parent.add(mesh);
+      combined.push(mesh);
+      for (const source of batch.sources) { source.visible = false; hidden.push(source); }
+    }
+    invalidate();
+    return () => {
+      hidden.forEach(source => { source.visible = true; });
+      combined.forEach(mesh => { parent.remove(mesh); mesh.geometry.dispose(); });
+    };
+  }, [variant, components?.wings, components?.tail, components?.gear, components?.engines, invalidate]);
+  const onWheels = ['engine-install', 'cabin', 'ready-for-paint', 'complete', 'paint'].includes(variant);
+  return <group ref={root} name={id} position={positionM} rotation={[0, rotationY ?? 0, 0]}>
     <Body variant={variant} />
-    {variant === 'sectioned' ? <Cradles /> : <>
+    {components ? <>
+      {components.wings && <Wings />}
+      {components.tail && <Tail painted={variant === 'complete'} />}
+      {components.gear ? <Gear /> : <Cradles />}
+      {components.engines && <Engines variant="engine-install" />}
+    </> : variant === 'sectioned' || variant === 'joined-fuselage' ? <Cradles /> : <>
       <Wings /><Tail painted={variant === 'complete'} />
       {onWheels ? <Gear /> : <Cradles />}
       <Engines variant={variant} />

@@ -1,4 +1,6 @@
 import type { AircraftVariant } from '../models/aircraft-parts';
+import { bays } from './campus.ts';
+import { stationActionDefinitions } from './station-actions.ts';
 
 export type AircraftEntity = {
   id: string;
@@ -26,15 +28,18 @@ const aircraftAtBay = (id: string, label: string, zoneId: string,
 });
 
 export const aircraftEntities: AircraftEntity[] = [
-  aircraftAtBay('aircraft-join', 'Fuselage sections', 'bay-1', 'sectioned', [-184, -145]),
-  aircraftAtBay('aircraft-wing-tail', 'Wing and tail join', 'bay-2', 'bare', [-40, -145]),
-  aircraftAtBay('aircraft-systems', 'Systems installation', 'bay-3', 'systems', [104, -145]),
-  aircraftAtBay('aircraft-gear-engines', 'Gear and engines', 'bay-4', 'engine-install', [-184, 85]),
-  aircraftAtBay('aircraft-cabin', 'Cabin installation', 'bay-5', 'cabin', [-40, 85]),
-  aircraftAtBay('aircraft-ground-check', 'Ground checks and rework', 'bay-6', 'complete', [104, 85]),
-  aircraftAtBay('aircraft-paint', 'Masked aircraft in paint', 'paint', 'paint', [104, -30]),
-  { ...aircraftAtBay('aircraft-delivery', 'Accepted A-100', 'delivery', 'complete', [420, 280]), rotationY: -Math.PI / 2 },
-  { ...aircraftAtBay('aircraft-delivery-02', 'Aircraft at flight-line checks', 'flightline', 'complete', [230, 280]), rotationY: -Math.PI / 2 },
+  aircraftAtBay('aircraft-join', 'A-100 · A100-001', 'bay-1', 'sectioned', [-184, -145]),
+  aircraftAtBay('aircraft-wing-tail', 'A-100 · A100-002', 'bay-2', 'bare', [-40, -145]),
+  aircraftAtBay('aircraft-systems', 'A-100 · A100-003', 'bay-3', 'systems', [104, -145]),
+  aircraftAtBay('aircraft-gear-engines', 'A-100 · A100-004', 'bay-4', 'engine-install', [-184, 85]),
+  aircraftAtBay('aircraft-cabin', 'A-100 · A100-005', 'bay-5', 'cabin', [-40, 85]),
+  aircraftAtBay('aircraft-ground-check', 'A-100 · A100-006', 'bay-6', 'ready-for-paint', [104, 85]),
+  aircraftAtBay('aircraft-paint', 'A-100 · A100-007', 'paint', 'paint', [104, -30]),
+  aircraftAtBay('aircraft-delivery-02', 'A-100 · A100-008', 'flightline', 'complete', [230, 280]),
+  aircraftAtBay('aircraft-delivery', 'A-100 · A100-009', 'delivery', 'complete', [420, 280]),
+  aircraftAtBay('aircraft-queue-10', 'A-100 · A100-010 · queue', 'receiving', 'sectioned', [-184, -55]),
+  aircraftAtBay('aircraft-queue-11', 'A-100 · A100-011 · queue', 'receiving', 'sectioned', [-100, -55]),
+  aircraftAtBay('aircraft-queue-12', 'A-100 · A100-012 · queue', 'receiving', 'sectioned', [-16, -55]),
 ];
 
 export const fixtures: FixtureEntity[] = [
@@ -46,14 +51,32 @@ export const fixtures: FixtureEntity[] = [
   { id: 'engine-stand', kind: 'platform', label: 'Engine handling stand', zoneId: 'bay-4', positionM: [-184, 0, 127], sizeM: [12, 2.8, 5] },
   { id: 'cabin-cart', kind: 'cart', label: 'Cabin kit cart', zoneId: 'bay-5', positionM: [-6, 0, 85], sizeM: [3.4, 1.4, 1.8] },
   { id: 'test-cart', kind: 'cart', label: 'Ground test cart', zoneId: 'bay-6', positionM: [138, 0, 85], sizeM: [3.4, 1.4, 1.8] },
+  ...bays.flatMap((bay, index): FixtureEntity[] => {
+    const outerSide = bay.row === 0 ? -1 : 1;
+    const aisleSide = -outerSide;
+    const zoneId = bay.id;
+    const rackLineZ = bay.centerM[1] + outerSide * 51;
+    const cartZ = bay.centerM[1] + aisleSide * 47;
+    return [
+      ...[-1, 1].map(side => ({ id: `${zoneId}-parts-rack-${side < 0 ? 'west' : 'east'}`,
+        kind: 'rack' as const, label: `Bay ${String(index + 1).padStart(2, '0')} parts rack`, zoneId,
+        positionM: [bay.centerM[0] + side * 34, 0, rackLineZ] as [number, number, number], sizeM: [13, 5, 3.5] as [number, number, number] })),
+      { id: `${zoneId}-mobile-tool-cart`, kind: 'cart' as const, label: `Bay ${String(index + 1).padStart(2, '0')} mobile tool cart`, zoneId,
+        positionM: [bay.centerM[0] + 30, 0, cartZ] as [number, number, number], sizeM: [4.2, 1.8, 2.2] as [number, number, number] },
+    ];
+  }),
   { id: 'receiving-pallet-a', kind: 'pallet', label: 'Fuselage section pallet', zoneId: 'receiving', positionM: [-431, 0, -84], sizeM: [20, 2.8, 14], load: 'fuselage' },
   { id: 'receiving-pallet-b', kind: 'pallet', label: 'Wing and tail kit', zoneId: 'receiving', positionM: [-385, 0, -84], sizeM: [32, 4.8, 30], load: 'wing' },
   { id: 'receiving-pallet-c', kind: 'pallet', label: 'Cabin / electrical kits', zoneId: 'receiving', positionM: [-339, 0, -84], sizeM: [16, 2.8, 14], load: 'supplier-kits' },
   { id: 'receiving-rack-a', kind: 'rack', label: 'Receiving rack · structures', zoneId: 'receiving', positionM: [-432, 0, -28], sizeM: [16, 6, 4] },
   { id: 'receiving-rack-b', kind: 'rack', label: 'Receiving rack · engine kits', zoneId: 'receiving', positionM: [-408, 0, -28], sizeM: [16, 6, 4] },
+  { id: 'receiving-rack-c', kind: 'rack', label: 'Receiving rack · fasteners', zoneId: 'receiving', positionM: [-384, 0, -28], sizeM: [16, 6, 4] },
+  { id: 'receiving-rack-d', kind: 'rack', label: 'Receiving rack · service kits', zoneId: 'receiving', positionM: [-360, 0, -28], sizeM: [16, 6, 4] },
   { id: 'stores-rack-west', kind: 'rack', label: 'Kitting rack 01', zoneId: 'stores', positionM: [268, 0, -155], sizeM: [20, 5.5, 3] },
   { id: 'stores-rack-centre', kind: 'rack', label: 'Parts rack 02', zoneId: 'stores', positionM: [300, 0, -155], sizeM: [20, 5.5, 3] },
   { id: 'stores-rack-east', kind: 'rack', label: 'Parts rack 03', zoneId: 'stores', positionM: [332, 0, -155], sizeM: [20, 5.5, 3] },
+  { id: 'stores-rack-upper-west', kind: 'rack', label: 'Kitting rack 04', zoneId: 'stores', positionM: [268, 0, -190], sizeM: [20, 5.5, 3] },
+  { id: 'stores-rack-upper-east', kind: 'rack', label: 'Kitting rack 05', zoneId: 'stores', positionM: [332, 0, -190], sizeM: [20, 5.5, 3] },
   { id: 'paint-pump-set', kind: 'cart', label: 'Paint service unit', zoneId: 'paint', positionM: [104, 0, 6], sizeM: [3.4, 1.4, 1.8] },
 ];
 
@@ -70,29 +93,29 @@ export type InspectableEntity = {
 
 export const transportEntities: InspectableEntity[] = [
   { id: 'cargo-freighter', kind: 'vehicle', label: 'Inbound cargo freighter', zoneId: 'inbound', positionM: [330, 0.7, -335], sizeM: [60, 14, 56],
-    details: [['Role', 'Supplier cargo arrival'], ['Sample load', 'Wing cradle and systems kit'], ['Status', 'Unloading · illustrative'], ['Destination', 'Receiving / kitting']],
-    note: 'A transport aircraft, separate from the fictional A-100 product. Load and status are static demo data.' },
-  { id: 'inbound-train', kind: 'vehicle', label: 'Rail section delivery', zoneId: 'inbound', positionM: [-365, 0.7, -345], sizeM: [270, 12, 12],
-    details: [['Role', 'Major section delivery'], ['Sample load', 'Covered fuselage sections'], ['Status', 'At unload siding · illustrative'], ['Handoff', 'Cradle → receiving']],
-    note: 'A fictional composite supply route. The train and load are static props, not a site-specific logistics claim.' },
-  { id: 'road-delivery-truck', kind: 'vehicle', label: 'Road kit delivery', zoneId: 'receiving', positionM: [-477, 0.7, -30], sizeM: [22, 5, 4.5],
-    details: [['Role', 'Supplier road delivery'], ['Sample load', 'Cabin and electrical kits'], ['Status', 'At receiving dock · illustrative'], ['Clearance', 'Receiving dock approach']],
-    note: 'A fictional static delivery vehicle with a defined receiving route.' },
-  { id: 'rail-forklift', kind: 'vehicle', label: 'Rail unload forklift', zoneId: 'inbound', positionM: [-412, 0.7, -307], sizeM: [4.5, 3.5, 2.4],
-    details: [['Role', 'Section cradle handling'], ['Sample load', 'Fuselage support cradle'], ['Status', 'Parked at unload point'], ['Route', 'Rail siding → receiving']],
-    note: 'Illustrative handling equipment. No lift capacity or safety certification is implied.' },
-  { id: 'material-tug', kind: 'vehicle', label: 'Receiving material tug', zoneId: 'receiving', positionM: [-358, 0.7, -56], sizeM: [6.5, 2.7, 2.4],
-    details: [['Role', 'Kitted material transfer'], ['Sample load', 'Two supply carts'], ['Status', 'Staged at receiving'], ['Route', 'Receiving → main hall']],
-    note: 'A stationary tug for the future route animation; the route is defined separately.' },
+    details: [['Role', 'Supplier cargo arrival'], ['Sample load', 'Wing and systems kit'], ['Status', 'Parked · scripted unload'], ['Destination', 'Receiving / kitting']],
+    note: 'A transport aircraft, separate from the fictional A-100 product. It stays parked while one illustrative crate travels down the loader.' },
+  { id: 'inbound-train', kind: 'vehicle', label: 'Rail section delivery', zoneId: 'inbound', positionM: [-70, 0.7, -345], sizeM: [270, 12, 12],
+    details: [['Role', 'Major section delivery'], ['Sample load', 'Fuselage and wing sections'], ['Status', 'Arriving · scripted'], ['Handoff', 'Flatcar → receiving']],
+    note: 'A fictional composite supply route. The consist arrives and dwells at the siding; timing and loads are illustrative.' },
+  { id: 'road-delivery-truck', kind: 'vehicle', label: 'Road kit delivery', zoneId: 'receiving', positionM: [-490, 0.7, 215], sizeM: [22, 5, 4.5],
+    details: [['Role', 'Supplier road delivery'], ['Sample load', 'Cabin and electrical kits'], ['Status', 'Road approach · scripted'], ['Clearance', 'Marked supplier road']],
+    note: 'A fictional truck follows the marked service road, pauses at receiving, then returns along the same route.' },
+  { id: 'rail-forklift', kind: 'vehicle', label: 'Receiving-kit forklift', zoneId: 'inbound', positionM: [-490, 0.7, -307], sizeM: [4.5, 3.5, 2.4],
+    details: [['Role', 'Kit pallet handling'], ['Sample load', 'Cabin and electrical kits'], ['Status', 'Scheduled · scripted'], ['Route', 'Receiving pallet → rack']],
+    note: 'The fictional forklift yields at the service-road crossing, picks one pallet and sets it at the receiving rack.' },
+  { id: 'material-tug', kind: 'vehicle', label: 'Receiving material tug', zoneId: 'receiving', positionM: [-435, 0.7, -30], sizeM: [6.5, 2.7, 2.4],
+    details: [['Role', 'Kitted material transfer'], ['Sample load', 'Two supply carts'], ['Status', 'Scheduled · scripted'], ['Route', 'Receiving ↔ Bay 01']],
+    note: 'The tug carries two illustrative carts to Bay 01, leaves them at the handoff, and returns empty.' },
   { id: 'cargo-belt-loader', kind: 'vehicle', label: 'Freighter belt loader', zoneId: 'inbound', positionM: [312, 0.7, -321], sizeM: [5, 7, 24],
-    details: [['Role', 'Cargo hold unloading'], ['Sample load', 'Wing and systems kit'], ['Status', 'At aircraft cargo door'], ['Handoff', 'Apron → receiving road']],
-    note: 'Static illustrative loader positioned at the transport aircraft hold.' },
+    details: [['Role', 'Cargo hold unloading'], ['Sample load', 'One wing/systems crate'], ['Status', 'Scripted unload'], ['Handoff', 'Belt → apron']],
+    note: 'The loader remains parked while the same cargo crate moves down its belt and rests at the apron handoff.' },
   { id: 'receiving-wing-stand', kind: 'machine', label: 'Wing kit cradle', zoneId: 'receiving', positionM: [-382, 0.7, -10], sizeM: [36, 7, 56],
-    details: [['Role', 'Incoming wing support'], ['Sample load', 'A-100 wing assembly'], ['Status', 'Parked in receiving'], ['Clearance', 'Receiving work envelope']],
-    note: 'A fictional support stand for an incoming component; no engineered load rating is represented.' },
+    details: [['Role', 'Wing transport dolly'], ['Sample load', 'A-100 wing assembly'], ['Status', 'Receiving aisle · scripted'], ['Clearance', 'Wide receiving lane']],
+    note: 'The wing and its support cradle move together through a short receiving-aisle route. No engineered load rating is represented.' },
   { id: 'receiving-engine-stand', kind: 'machine', label: 'Engine transport cradle', zoneId: 'receiving', positionM: [-350, 0.7, -10], sizeM: [14, 4, 8],
-    details: [['Role', 'Engine kit staging'], ['Sample load', 'One engine module'], ['Status', 'Parked in receiving'], ['Transfer', 'Tug route to assembly']],
-    note: 'Illustrative engine handling geometry with no certified lift or transport specification.' },
+    details: [['Role', 'Engine transport dolly'], ['Sample load', 'One engine module'], ['Status', 'Receiving aisle · scripted'], ['Clearance', 'Marked dolly lane']],
+    note: 'The engine and its transport cradle move together through a short receiving-aisle route. No certified lift or transport specification is implied.' },
   { id: 'delivery-tug', kind: 'vehicle', label: 'Aircraft tow tug', zoneId: 'flightline', positionM: [265, 0.7, 224], sizeM: [8, 3.4, 3.4],
     details: [['Role', 'Aircraft apron handling'], ['Status', 'Parked beside tow lane'], ['Route', 'Paint bay → flight-line checks → delivery stand'], ['Clearance', 'Marked aircraft tow lane']],
     note: 'A static ground-support vehicle. Aircraft towing is a later movement increment.' },
@@ -143,6 +166,13 @@ export const inspectableEntities: InspectableEntity[] = [
       note: 'Illustrative equipment information. Values are fixed sample data, with no machine connection.' })),
   ...people,
   ...transportEntities,
+  ...stationActionDefinitions.map((action): InspectableEntity => ({
+    id: action.id, kind: 'machine', label: action.label, zoneId: action.zoneId,
+    positionM: action.positionM, sizeM: action.sizeM,
+    details: [['Role', action.role], ['Sample mode', 'Ready · awaiting work cycle'],
+      ['Cycle', 'Repeatable · shared demo clock'], ['Source', 'Illustrative scripted action']],
+    note: 'The machine follows an authored demonstration cycle. Motion, loads and sample status are illustrative; no production control or live equipment data is connected.',
+  })),
 ];
 
 export function isSelectionClick(button: number, distancePx: number): boolean {

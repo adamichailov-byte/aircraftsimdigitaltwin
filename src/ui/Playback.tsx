@@ -16,15 +16,16 @@ export function Playback() {
     return () => window.clearInterval(timer);
   }, [playback.playing]);
 
-  return <nav className="playback-bar" aria-label="Demonstration playback">
-    <span className="playback-label">DEMO TIME</span>
+  return <>
+    <nav className="playback-bar" aria-label="Demonstration playback">
+    <span className="playback-label">PREVIEW TIME</span>
     <output className="playback-time" aria-live="off">{formatTime(elapsed)}</output>
     <span className="playback-divider" />
     <button className="playback-toggle" onClick={() => demoClock.togglePlaying()}
       aria-label={playback.playing ? 'Pause demonstration' : 'Play demonstration'}>
       {playback.playing ? 'Pause' : 'Play'}
     </button>
-    <button className="playback-reset" onClick={() => { demoClock.reset(); setElapsed(0); }}
+    <button className="playback-reset" onClick={() => { demoClock.seek(0); setElapsed(0); }}
       aria-label="Restart demonstration" title="Restart from the beginning">Restart</button>
     <label className="speed-control">Speed
       <select aria-label="Demonstration speed" value={playback.speed}
@@ -32,6 +33,7 @@ export function Playback() {
         <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option>
       </select>
     </label>
-    <span className="playback-caption">Compressed demonstration time</span>
-  </nav>;
+    <span className="playback-caption">Scripted motion · independent clock</span>
+    </nav>
+  </>;
 }

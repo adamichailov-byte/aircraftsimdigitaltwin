@@ -24,9 +24,20 @@ export const siteRoutes: SiteRoute[] = [
     ], clearWidthM: 18 },
   { id: 'supplier-truck-dock', label: 'Supplier truck approach', mode: 'road-delivery',
     pointsM: [[-490, 215], [-490, -30], [-455, -30]], dwellPointsM: [[-477, -30]], crossings: [], clearWidthM: 16 },
+  { id: 'forklift-pallet-run', label: 'Forklift pallet transfer', mode: 'road-delivery',
+    pointsM: [[-490, -307], [-490, -263], [-490, -30], [-455, -30], [-430, -30], [-339, -30], [-339, -84],
+      [-408, -28], [-339, -84], [-339, -30], [-430, -30], [-455, -30], [-490, -30], [-490, -263], [-490, -307]],
+    dwellPointsM: [[-490, -263], [-339, -84], [-408, -28]],
+    crossings: [{ pointM: [-490, -263], label: 'North service road crossing', yieldTo: 'road-traffic' }], clearWidthM: 14 },
   { id: 'receiving-to-assembly', label: 'Kitted material transfer', mode: 'material-tug',
     pointsM: [[-435, -30], [-315, -30], [-260, -30], [-230, -45], [-195, -65], [-184, -83]],
     dwellPointsM: [[-435, -30], [-184, -83]], crossings: [], clearWidthM: 20 },
+  { id: 'wing-dolly-transfer', label: 'Wing dolly receiving aisle', mode: 'material-tug',
+    pointsM: [[-382, -10], [-382, 36], [-410, 36], [-410, -10], [-382, -10]],
+    dwellPointsM: [[-382, -10], [-410, 36]], crossings: [], clearWidthM: 28 },
+  { id: 'engine-dolly-transfer', label: 'Engine dolly receiving aisle', mode: 'material-tug',
+    pointsM: [[-350, -10], [-350, 40], [-326, 40], [-326, -10], [-350, -10]],
+    dwellPointsM: [[-350, -10], [-326, 40]], crossings: [], clearWidthM: 14 },
   { id: 'hall-to-delivery', label: 'Paint → checks → delivery tow route', mode: 'aircraft-tow',
     pointsM: [[104, -30], [180, -30], [205, -30], [215, -28], [223, -20], [228, -10], [230, 0], [230, 170],
       [230, 235], [230, 248], [230, 235], [420, 235], [420, 248], [420, 370]],
@@ -47,6 +58,8 @@ export function routeLengthM(route: SiteRoute): number {
 export type PersonRoute = {
   entityId: string;
   pointsM: RoutePointM[];
+  stationWorkZoneId?: string;
+  safeWaitPointM?: RoutePointM;
   speedMps: number;
   workSeconds: number;
   phaseSeconds: number;
@@ -57,12 +70,16 @@ export type PersonRoute = {
 export const personRoutes: PersonRoute[] = [
   { entityId: 'person-tech-07', pointsM: [[-220, -161], [-220, -129]], speedMps: 0.9, workSeconds: 7, phaseSeconds: 0 },
   { entityId: 'person-tech-21', pointsM: [[-148, -161], [-148, -129]], speedMps: 0.9, workSeconds: 6, phaseSeconds: 11 },
-  { entityId: 'person-tech-22', pointsM: [[-76, -161], [-76, -129]], speedMps: 0.9, workSeconds: 7, phaseSeconds: 5 },
-  { entityId: 'person-tech-23', pointsM: [[-4, -161], [-4, -129]], speedMps: 0.9, workSeconds: 6, phaseSeconds: 17 },
+  { entityId: 'person-tech-22', pointsM: [[-76, -212], [-76, -205]], stationWorkZoneId: 'bay-2', safeWaitPointM: [-76, -212],
+    speedMps: 0.9, workSeconds: 7, phaseSeconds: 5 },
+  { entityId: 'person-tech-23', pointsM: [[-4, -212], [-4, -205]], stationWorkZoneId: 'bay-2', safeWaitPointM: [-4, -212],
+    speedMps: 0.9, workSeconds: 6, phaseSeconds: 17 },
   { entityId: 'person-tech-12', pointsM: [[140, -161], [140, -129]], speedMps: 0.9, workSeconds: 7, phaseSeconds: 3 },
   { entityId: 'person-tech-24', pointsM: [[68, -161], [68, -129]], speedMps: 0.9, workSeconds: 6, phaseSeconds: 21 },
-  { entityId: 'person-tech-25', pointsM: [[-220, 69], [-220, 101]], speedMps: 0.9, workSeconds: 8, phaseSeconds: 9 },
-  { entityId: 'person-tech-26', pointsM: [[-148, 69], [-148, 101]], speedMps: 0.9, workSeconds: 6, phaseSeconds: 23 },
+  { entityId: 'person-tech-25', pointsM: [[-220, 69], [-220, 101]], stationWorkZoneId: 'bay-4', safeWaitPointM: [-220, 69],
+    speedMps: 0.9, workSeconds: 8, phaseSeconds: 9 },
+  { entityId: 'person-tech-26', pointsM: [[-148, 69], [-148, 101]], stationWorkZoneId: 'bay-4', safeWaitPointM: [-148, 69],
+    speedMps: 0.9, workSeconds: 6, phaseSeconds: 23 },
   { entityId: 'person-tech-18', pointsM: [[-4, 69], [-4, 101]], speedMps: 0.9, workSeconds: 7, phaseSeconds: 6 },
   { entityId: 'person-tech-27', pointsM: [[-76, 69], [-76, 101]], speedMps: 0.9, workSeconds: 6, phaseSeconds: 16 },
   { entityId: 'person-tech-28', pointsM: [[140, 69], [140, 101]], speedMps: 0.9, workSeconds: 8, phaseSeconds: 2 },
@@ -73,7 +90,11 @@ export const personRoutes: PersonRoute[] = [
 
 export type PersonPose = { xM: number; zM: number; heading: number; gait: number; working: boolean };
 
-export function personPoseAt(route: PersonRoute, elapsedSeconds: number): PersonPose {
+export function personPoseAt(route: PersonRoute, elapsedSeconds: number, holdAtSafePoint = false): PersonPose {
+  if (holdAtSafePoint && route.safeWaitPointM) {
+    const [xM, zM] = route.safeWaitPointM;
+    return { xM, zM, heading: 0, gait: 0, working: true };
+  }
   const segments = route.pointsM.map((point, index) => {
     const next = route.pointsM[(index + 1) % route.pointsM.length];
     const lengthM = Math.hypot(next[0] - point[0], next[1] - point[1]);

@@ -56,10 +56,14 @@ export function LogisticsRoutes() {
 function WingCradle() {
   const geometry = useMemo(wingGeometry, []);
   useEffect(() => () => geometry.dispose(), [geometry]);
-  return <group name="receiving-wing-kit-cradle" position={[-382, 0.7, -10]}>
+  return <group name="receiving-wing-kit-cradle">
     <mesh position={[0, -2, 0]} geometry={geometry} scale={[0.45, 0.7, 0.45]} castShadow>
       <meshStandardMaterial color="#c5cbca" roughness={0.82} />
     </mesh>
+    {[-1, 1].flatMap(x => [-1, 1].map(z => <mesh key={`${x}-${z}`}
+      position={[x * 12, 0.42, z * 10]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+      <cylinderGeometry args={[0.72, 0.72, 0.38, 14]} /><meshStandardMaterial color="#34454b" roughness={0.95} />
+    </mesh>))}
     {[-11, 11].map(z => <group key={z}>
       <Block at={[0, 1.1, z]} size={[3.6, 2.2, 3.2]} color="#586b73" />
       <Block at={[0, 2.28, z]} size={[4.2, 0.24, 3.8]} color="#b39a59" />
@@ -69,8 +73,12 @@ function WingCradle() {
 }
 
 function EngineCradle() {
-  return <group name="receiving-engine-transport-cradle" position={[-350, 0.7, -10]}>
+  return <group name="receiving-engine-transport-cradle">
     <Block at={[0, 0.3, 0]} size={[13, 0.6, 7.4]} color="#586b73" />
+    {[-1, 1].flatMap(x => [-1, 1].map(z => <mesh key={`${x}-${z}`}
+      position={[x * 5, 0.52, z * 2.8]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+      <cylinderGeometry args={[0.58, 0.58, 0.32, 14]} /><meshStandardMaterial color="#34454b" roughness={0.95} />
+    </mesh>))}
     {[-4.4, 4.4].map(x => <group key={x}>
       <Block at={[x, 1.4, 0]} size={[0.65, 2.2, 5.8]} color="#71848b" />
       <Block at={[x, 2.62, 0]} size={[1.7, 0.2, 4.8]} color="#b39a59" />

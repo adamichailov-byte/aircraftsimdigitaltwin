@@ -5,7 +5,9 @@ import {
   cancelFocus,
   cameraTargetMoved,
   fitCameraToBounds,
+  fitCameraToObject,
   focusTo,
+  moveFocusWithTarget,
   syncFocusPose,
 } from '../src/scene/camera-focus.ts';
 import { chooseBannerIds } from '../src/scene/label-priority.ts';
@@ -84,6 +86,31 @@ test('inspection framing reserves the right panel and balances both panel offset
   assert.ok(right.distance > clear.distance);
   assert.ok(right.target[0] > clear.target[0]);
   assert.deepEqual(balanced.target, clear.target);
+});
+
+test('moving-object focus uses a close inspection distance instead of the whole logistics zone', () => {
+  const vehicle = fitCameraToObject([-490, 0.7, -307], [4.5, 3.5, 2.4], 1280, 800, 0, 40, undefined, 320);
+  const zone = fitCameraToBounds([0, -335], [1100, 120], 1280, 800, 0, 40, undefined, 320);
+  assert.ok(vehicle.distance >= 55 && vehicle.distance <= 70);
+  assert.ok(vehicle.distance < zone.distance / 10);
+  assert.equal(vehicle.target[1], 2.1);
+});
+
+test('tracked camera translation follows a moving target without changing its viewing offset', () => {
+  const state = focusTo({ pose: overview, transition: null }, bayOne, 100, 700);
+  const shifted = moveFocusWithTarget(state, [18, 0, -9]);
+  assert.deepEqual(shifted.transition.from.position, [818, 950, 1141]);
+  assert.deepEqual(shifted.transition.to.target, [-166, 8, -154]);
+  const completed = moveFocusWithTarget({ pose: bayOne, transition: null }, [-7, 0, 12]);
+  assert.deepEqual(completed.pose.position, [113, 100, 222]);
+  assert.deepEqual(completed.pose.target, [-191, 8, -133]);
+});
+
+test('compact inspection framing keeps the tracked vehicle above the inspector sheet', () => {
+  const compact = fitCameraToObject([-490, 0.7, -307], [4.5, 3.5, 2.4], 691, 768);
+  const wide = fitCameraToObject([-490, 0.7, -307], [4.5, 3.5, 2.4], 1280, 800);
+  assert.ok(compact.target[1] < wide.target[1]);
+  assert.equal(wide.target[1], 2.1);
 });
 
 test('selected banner wins a collision and remaining labels keep clear space', () => {

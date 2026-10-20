@@ -3,6 +3,7 @@ import { CatmullRomCurve3, TubeGeometry, Vector3 } from 'three';
 import { Block } from '../scene/Building';
 import { bays } from '../demo/campus';
 import { RepeatedBlocks } from './RepeatedBlocks';
+import { pilotWingCraneRows } from '../simulation/transfers';
 
 const metal = '#657982';
 const lightMetal = '#9eacaf';
@@ -43,28 +44,22 @@ function JoinAlignment() {
   </group>;
 }
 
-function WingCrane() {
-  const columns = useMemo(() => [-44, 44].flatMap(x => [-51, 51].map(z => ({
+function WingCrane({perimeterClearance=false}:{perimeterClearance?:boolean}) {
+  const rows=useMemo(()=>perimeterClearance?pilotWingCraneRows:[-51,51],[perimeterClearance]);
+  const columns = useMemo(() => [-44, 44].flatMap(x => rows.map(z => ({
     at: [x, 11.5, z] as [number, number, number], size: [1.5, 23, 1.5] as [number, number, number],
-  }))), []);
-  const feet = useMemo(() => [-44, 44].flatMap(x => [-51, 51].map(z => ({
+  }))), [rows]);
+  const feet = useMemo(() => [-44, 44].flatMap(x => rows.map(z => ({
     at: [x, 1.5, z] as [number, number, number], size: [3, 0.6, 3] as [number, number, number],
-  }))), []);
-  const caps = useMemo(() => [-44, 44].flatMap(x => [-51, 51].map(z => ({
+  }))), [rows]);
+  const caps = useMemo(() => [-44, 44].flatMap(x => rows.map(z => ({
     at: [x, 22.7, z] as [number, number, number], size: [3.8, 0.5, 3.8] as [number, number, number],
-  }))), []);
+  }))), [rows]);
   return <group name="supported-wing-lift-gantry">
     <RepeatedBlocks items={columns} color={metal} />
     <RepeatedBlocks items={feet} color="#788b90" />
     <RepeatedBlocks items={caps} color={safety} />
-    {[-50, 50].map(z => <Block key={z} at={[0, 23.4, z]} size={[90, 1.2, 1.2]} color="#71858b" />)}
-    <Block at={[0, 23.4, 0]} size={[1.5, 1.6, 104]} color="#84969a" />
-    <Block at={[0, 22.2, 0]} size={[4.8, 0.45, 4.8]} color={safety} />
-    <Block at={[0, 18.9, 0]} size={[0.14, 6.2, 0.14]} color="#455b63" />
-    <Block at={[0, 15.8, 0]} size={[1.4, 0.45, 1.4]} color={metal} />
-    <Block at={[0.45, 15.2, 0]} size={[0.18, 0.9, 0.18]} color={safety} />
-    <Block at={[-4, 13.8, 0]} size={[1.2, 0.5, 42]} color="#71858b" />
-    {[-19, -7, 7, 19].map(z => <Block key={z} at={[-4, 10.6, z]} size={[0.12, 6, 0.12]} color={safety} />)}
+    {rows.map(z => <Block key={z} at={[0, 23.4, z]} size={[90, 1.2, 1.2]} color="#71858b" />)}
     {[-30, 30].map(z => <Block key={z} at={[0, 5.6, z]} size={[18, 0.18, 0.7]} color={safety} shadow={false} />)}
   </group>;
 }
@@ -136,12 +131,6 @@ function EngineHandling() {
       <Block at={[0, 0.95, 0]} size={[0.45, 1.9, 0.45]} color={metal} />
       <Block at={[0, 2.1, 0]} size={[0.9, 0.22, 0.9]} color={safety} />
     </group>))}
-    <mesh position={[35, 3.5, 36]} rotation={[0, 0, Math.PI / 2]}>
-      <cylinderGeometry args={[2.4, 2.4, 6.4, 32, 1, true]} /><meshStandardMaterial color="#94a39f" roughness={0.68} side={2} />
-    </mesh>
-    <mesh position={[35, 3.5, 36]} rotation={[0, 0, Math.PI / 2]}>
-      <torusGeometry args={[2.35, 0.12, 10, 32]} /><meshStandardMaterial color="#5f747a" roughness={0.72} />
-    </mesh>
     {[-35, 35].map(x => <group key={x} position={[x, 0, 39]}>
       <Block at={[0, 0.18, 0]} size={[10, 0.36, 7]} color="#7c8d90" />
       <Block at={[0, 0.45, 0]} size={[7, 0.2, 6]} color={safety} />
@@ -166,10 +155,10 @@ function TestStation() {
   </group>;
 }
 
-export function StationTooling() {
+export function StationTooling({perimeterClearance=false}:{perimeterClearance?:boolean}) {
   return <group name="station-specific-tooling">
     <group position={[bays[0].centerM[0], 0.7, bays[0].centerM[1]]}><JoinAlignment /></group>
-    <group position={[bays[1].centerM[0], 0.7, bays[1].centerM[1]]}><WingJig /><WingCrane /></group>
+    <group position={[bays[1].centerM[0], 0.7, bays[1].centerM[1]]}><WingJig /><WingCrane perimeterClearance={perimeterClearance}/></group>
     <group position={[bays[2].centerM[0], 0.7, bays[2].centerM[1]]}><SystemsStation /></group>
     <group position={[bays[3].centerM[0], 0.7, bays[3].centerM[1]]}><EngineHandling /></group>
     <group position={[bays[5].centerM[0], 0.7, bays[5].centerM[1]]}><TestStation /></group>

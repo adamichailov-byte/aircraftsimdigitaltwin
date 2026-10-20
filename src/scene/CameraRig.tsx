@@ -6,19 +6,24 @@ import { PerspectiveCamera, Vector3 } from 'three';
 import { homePositionM, homeTargetM } from '../demo/campus';
 import { zones } from '../demo/zones';
 import { advanceFocus, cameraTargetMoved, cancelFocus, fitCameraToBounds, focusTo, syncFocusPose,
-  type CameraFocusState, type CameraPose } from './camera-focus';
+  fitCameraToObject, moveFocusWithTarget, type CameraFocusState, type CameraPose, type Vec3 } from './camera-focus';
 
 export type CameraCommand = { type: 'home' } | { type: 'focus'; zoneId: string }
+  | { type: 'track'; entityId: string; positionM: Vec3; sizeM: Vec3 }
   | { type: 'move'; action: 'in' | 'out' | 'left' | 'right' | 'up' | 'down' };
 export type CameraCommandHandle = { run: (command: CameraCommand) => void };
 
-export function CameraRig({ commands, panelWidth, rightPanelWidth, onManualPan, movementKeys }: {
+type TrackedEntity = { entityId: string; positionM: Vec3; sizeM: Vec3; targetM: Vec3 };
+
+export function CameraRig({ commands, panelWidth, rightPanelWidth, onManualPan, movementKeys, resolveEntityPose }: {
   commands: RefObject<CameraCommandHandle | null>; panelWidth: number; rightPanelWidth: number; onManualPan: () => void;
   movementKeys: Set<string>;
+  resolveEntityPose?: (id: string) => Vec3 | null;
 }) {
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
   const transition = useRef<CameraFocusState>({ pose: { position: homePositionM, target: homeTargetM }, transition: null });
   const activeFocusZone = useRef<string | null>(null);
+  const trackedEntity = useRef<TrackedEntity | null>(null);
   const manualStart = useRef<CameraPose | null>(null);
   const keyboardPanActive = useRef(false);
   const { camera, gl, invalidate, size, clock } = useThree();
@@ -32,6 +37,7 @@ export function CameraRig({ commands, panelWidth, rightPanelWidth, onManualPan, 
       if (!keyboardPanActive.current) {
         interrupt();
         activeFocusZone.current = null;
+        trackedEntity.current = null;
         manualStart.current = null;
         onManualPan();
         keyboardPanActive.current = true;
@@ -50,6 +56,24 @@ export function CameraRig({ commands, panelWidth, rightPanelWidth, onManualPan, 
       return;
     }
     keyboardPanActive.current = false;
+    const tracked = trackedEntity.current;
+    if (tracked && controls.current) {
+      const storyPosition = resolveEntityPose?.(tracked.entityId) ?? null;
+      const nextTarget: Vec3 = [storyPosition?.[0] ?? tracked.positionM[0],
+        tracked.positionM[1] + tracked.sizeM[1] * 0.4,
+        storyPosition?.[2] ?? tracked.positionM[2]];
+      const offset: Vec3 = [nextTarget[0] - tracked.targetM[0], nextTarget[1] - tracked.targetM[1],
+        nextTarget[2] - tracked.targetM[2]];
+      if (Math.hypot(...offset) > 0.001) {
+        trackedEntity.current = { ...tracked, targetM: nextTarget };
+        transition.current = moveFocusWithTarget(transition.current, offset);
+        if (!transition.current.transition) {
+          camera.position.set(...transition.current.pose.position);
+          controls.current.target.set(...transition.current.pose.target);
+          controls.current.update();
+        }
+      }
+    }
     if (!transition.current.transition) return;
     const next = advanceFocus(transition.current, clock.elapsedTime * 1000);
     transition.current = next.state;
@@ -77,10 +101,12 @@ export function CameraRig({ commands, panelWidth, rightPanelWidth, onManualPan, 
     commands.current = { run(command) {
       if (command.type === 'home') {
         activeFocusZone.current = null;
+        trackedEntity.current = null;
         apply({ position: homePositionM, target: homeTargetM });
         return;
       }
       if (command.type === 'focus') {
+        trackedEntity.current = null;
         const zone = zones.find(candidate => candidate.id === command.zoneId);
         if (!zone?.focusCenterM || !zone.focusSizeM) return;
         activeFocusZone.current = zone.id;
@@ -88,7 +114,20 @@ export function CameraRig({ commands, panelWidth, rightPanelWidth, onManualPan, 
         apply({ position: fit.position, target: fit.target });
         return;
       }
+      if (command.type === 'track') {
+        activeFocusZone.current = null;
+        const storyPosition = resolveEntityPose?.(command.entityId) ?? null;
+        const targetM: Vec3 = [storyPosition?.[0] ?? command.positionM[0],
+          command.positionM[1] + command.sizeM[1] * 0.4,
+          storyPosition?.[2] ?? command.positionM[2]];
+        trackedEntity.current = { entityId: command.entityId, positionM: command.positionM,
+          sizeM: command.sizeM, targetM };
+        apply(fitCameraToObject([targetM[0], command.positionM[1], targetM[2]], command.sizeM, size.width, size.height,
+          panelWidth, perspective.fov, undefined, rightPanelWidth));
+        return;
+      }
       activeFocusZone.current = null;
+      trackedEntity.current = null;
       transition.current = transition.current.transition
         ? cancelFocus(transition.current, now())
         : syncFocusPose(currentPose());
@@ -115,7 +154,16 @@ export function CameraRig({ commands, panelWidth, rightPanelWidth, onManualPan, 
     const layout = [size.width, size.height, panelWidth, rightPanelWidth];
     const resized = layout.some((value, index) => value !== previousSize.current[index]);
     previousSize.current = layout;
-    if (resized && activeFocusZone.current) {
+    if (resized && trackedEntity.current) {
+      const tracked = trackedEntity.current;
+      const storyPosition = resolveEntityPose?.(tracked.entityId) ?? null;
+      const targetM: Vec3 = [storyPosition?.[0] ?? tracked.positionM[0],
+        tracked.positionM[1] + tracked.sizeM[1] * 0.4,
+        storyPosition?.[2] ?? tracked.positionM[2]];
+      trackedEntity.current = { ...tracked, targetM };
+      apply(fitCameraToObject([targetM[0], tracked.positionM[1], targetM[2]], tracked.sizeM, size.width, size.height, panelWidth,
+        perspective.fov, undefined, rightPanelWidth));
+    } else if (resized && activeFocusZone.current) {
       const zone = zones.find(candidate => candidate.id === activeFocusZone.current);
       if (zone?.focusCenterM && zone.focusSizeM) {
         const fit = fitCameraToBounds(zone.focusCenterM, zone.focusSizeM, size.width, size.height, panelWidth, perspective.fov, undefined, rightPanelWidth);
@@ -123,7 +171,7 @@ export function CameraRig({ commands, panelWidth, rightPanelWidth, onManualPan, 
       }
     }
     return () => { commands.current = null; };
-  }, [camera, clock, commands, gl, invalidate, panelWidth, rightPanelWidth, perspective.fov, size.height, size.width]);
+  }, [camera, clock, commands, gl, invalidate, panelWidth, rightPanelWidth, perspective.fov, size.height, size.width, resolveEntityPose]);
 
   function interrupt() {
     if (transition.current.transition) {
@@ -143,6 +191,8 @@ export function CameraRig({ commands, panelWidth, rightPanelWidth, onManualPan, 
   }
   function beginManualControl() {
     interrupt();
+    // User orbit/zoom/pan owns the view from this point, including small wheel steps.
+    trackedEntity.current = null;
     const target = controls.current?.target;
     if (target) manualStart.current = { position: camera.position.toArray() as [number, number, number],
       target: target.toArray() as [number, number, number] };
@@ -155,6 +205,7 @@ export function CameraRig({ commands, panelWidth, rightPanelWidth, onManualPan, 
     if (!start || !target || !cameraTargetMoved(start.target, target.toArray() as [number, number, number])) return;
     manualStart.current = null;
     activeFocusZone.current = null;
+    trackedEntity.current = null;
     onManualPan();
   }
   return <OrbitControls ref={controls} makeDefault target={homeTargetM} enableDamping={false}

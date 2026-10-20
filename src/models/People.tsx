@@ -7,6 +7,8 @@ import type { InspectableEntity } from '../demo/entities';
 import { Selectable } from '../scene/Selectable';
 import { Block } from '../scene/Building';
 import { technicianGround } from './people-ground';
+import { stationWorkActiveForZone } from '../demo/station-actions';
+import { storyMachineTimeAt } from '../demo/story';
 
 export function DemoClockDriver() {
   const invalidate = useThree(state => state.invalidate);
@@ -52,7 +54,10 @@ function MovingPerson({ entity, selected, onSelect }: {
   const arms = [useRef<Group>(null), useRef<Group>(null)];
   useFrame(() => {
     if (!route || !actor.current) return;
-    const pose = personPoseAt(route, demoClock.getElapsedSeconds());
+    const elapsedSeconds = demoClock.getElapsedSeconds();
+    const holdAtSafetyPoint = Boolean(route.stationWorkZoneId
+      && stationWorkActiveForZone(route.stationWorkZoneId, storyMachineTimeAt(elapsedSeconds)));
+    const pose = personPoseAt(route, elapsedSeconds, holdAtSafetyPoint);
     // Building pads top out at y=0.7 m; align each figure's feet to that slab.
     actor.current.position.set(pose.xM, technicianGround.rootY, pose.zM);
     actor.current.rotation.y = pose.heading;

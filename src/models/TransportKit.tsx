@@ -13,7 +13,7 @@ function Wheel({ at, radius = 0.85 }: { at: [number, number, number]; radius?: n
 export function CargoFreighter() {
   const geometry = useMemo(() => wingGeometry(), []);
   useEffect(() => () => geometry.dispose(), [geometry]);
-  return <group name="inbound-cargo-freighter" position={[330, 0.7, -335]}>
+  return <group name="inbound-cargo-freighter">
     <mesh position={[0, 5.6, 0]} rotation={[0, 0, Math.PI / 2]} castShadow receiveShadow>
       <cylinderGeometry args={[3.15, 3.6, 44, 32]} /><meshStandardMaterial {...finishes.primer} />
     </mesh>
@@ -92,15 +92,15 @@ function Locomotive() {
 }
 
 export function RailConsist() {
-  return <group name="rail-section-delivery" position={[-365, 0.7, -345]}>
+  return <group name="rail-section-delivery">
     {[-90, -30, 30].map((xM, index) => <Flatcar key={xM} xM={xM}
       load={index === 0 ? 'fuselage' : index === 1 ? 'wing' : 'kits'} />)}
     <Locomotive />
   </group>;
 }
 
-function Truck({ positionM }: { positionM: [number, number, number] }) {
-  return <group position={positionM}>
+function Truck() {
+  return <group>
     <Block at={[4, 1.6, 0]} size={[7, 2.8, 4.1]} color="#536a70" />
     <Block at={[5.4, 3.2, 0]} size={[3.8, 1.2, 3.9]} color="#71858a" />
     <Block at={[6.4, 3.35, 2]} size={[1.7, 0.7, 0.12]} color="#a6c1bd" shadow={false} />
@@ -113,7 +113,7 @@ function Truck({ positionM }: { positionM: [number, number, number] }) {
 }
 
 function Forklift() {
-  return <group position={[-412, 0.7, -307]}>
+  return <group>
     <Block at={[-0.4, 1.5, 0]} size={[2.6, 2.2, 2.1]} color="#b39a59" />
     <Block at={[0.35, 3.05, 0]} size={[0.2, 4.2, 1.8]} color="#526770" />
     <Block at={[0.35, 4.9, 0]} size={[0.3, 0.15, 2.1]} color="#526770" />
@@ -126,8 +126,8 @@ function Forklift() {
   </group>;
 }
 
-function TowTractor({ positionM }: { positionM: [number, number, number] }) {
-  return <group position={positionM}>
+export function AircraftTowTug() {
+  return <group>
     <Block at={[0, 1.4, 0]} size={[5.2, 1.7, 2.8]} color="#b39a59" />
     <Block at={[-0.8, 2.45, 0]} size={[2.2, 1.1, 2.5]} color="#677d83" />
     <Block at={[-0.8, 2.55, 1.27]} size={[1.4, 0.72, 0.08]} color="#a6c1bd" shadow={false} />
@@ -137,7 +137,7 @@ function TowTractor({ positionM }: { positionM: [number, number, number] }) {
 }
 
 function BeltLoader() {
-  return <group position={[312, 0.7, -321]}>
+  return <group>
     <Block at={[0, 3.65, 0]} size={[3.3, 0.55, 23]} color="#536970" />
     <mesh position={[0, 3.65, 0]} rotation={[0.19, 0, 0]}>
       <boxGeometry args={[3, 0.18, 23]} /><meshStandardMaterial color="#35494e" roughness={0.9} />
@@ -150,8 +150,8 @@ function BeltLoader() {
   </group>;
 }
 
-function GroundPowerCart({ positionM }: { positionM: [number, number, number] }) {
-  return <group position={positionM}>
+function GroundPowerCart() {
+  return <group>
     <Block at={[0, 1.25, 0]} size={[3.5, 1.35, 2.1]} color="#74868a" />
     <Block at={[-0.2, 2.15, 0]} size={[2.1, 0.55, 1.7]} color="#526970" />
     {[-1, 1].map(side => <Block key={side} at={[0, 1.25, side * 1.07]}
@@ -165,9 +165,9 @@ function GroundPowerCart({ positionM }: { positionM: [number, number, number] })
 export function GroundSupport({ entity }: { entity: InspectableEntity }) {
   if (entity.id === 'rail-forklift') return <Forklift />;
   if (entity.id === 'cargo-belt-loader') return <BeltLoader />;
-  if (entity.id === 'road-delivery-truck') return <Truck positionM={entity.positionM} />;
-  if (entity.id === 'material-tug') return <TowTractor positionM={entity.positionM} />;
-  if (entity.id === 'delivery-tug') return <TowTractor positionM={entity.positionM} />;
-  if (entity.id === 'ground-power-cart') return <GroundPowerCart positionM={entity.positionM} />;
+  if (entity.id === 'road-delivery-truck') return <Truck />;
+  if (entity.id === 'material-tug') return <AircraftTowTug />;
+  if (entity.id === 'delivery-tug') return <AircraftTowTug />;
+  if (entity.id === 'ground-power-cart') return <GroundPowerCart />;
   return null;
 }

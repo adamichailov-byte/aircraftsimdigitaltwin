@@ -3,10 +3,11 @@ import { Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import { zones } from '../demo/zones';
+import { overviewZoneIds } from '../demo/zone-labels';
 import { chooseBannerIds } from './label-priority';
 
-const overviewOrder = ['inbound', 'receiving', 'stores', 'bay-1', 'bay-3', 'bay-5', 'paint', 'flightline', 'delivery'];
-const priority = new Map(overviewOrder.map((id, index) => [id, index]));
+const overviewZones = new Set(overviewZoneIds);
+const priority = new Map(overviewZoneIds.map((id, index) => [id, index]));
 
 export function ZoneLabels({ selectedZoneId, onSelectZone }: {
   selectedZoneId: string | null;
@@ -22,7 +23,7 @@ export function ZoneLabels({ selectedZoneId, onSelectZone }: {
     const local = selected?.focusCenterM
       ? visibleZones.filter(zone => zone.id === selected.id || Math.hypot(
         zone.focusCenterM![0] - selected.focusCenterM![0], zone.focusCenterM![1] - selected.focusCenterM![1]) <= 255)
-      : visibleZones.filter(zone => overviewOrder.includes(zone.id));
+      : visibleZones.filter(zone => overviewZones.has(zone.id));
     const candidates = local.flatMap(zone => {
       const button = buttons.current.get(zone.id);
       if (!button) return [];
@@ -31,7 +32,7 @@ export function ZoneLabels({ selectedZoneId, onSelectZone }: {
       return [{ id: zone.id, x: (projected.x + 1) * size.width / 2, y: (1 - projected.y) * size.height / 2,
         width: button.offsetWidth, height: button.offsetHeight, priority: priority.get(zone.id) ?? 99 }];
     });
-    const chosen = new Set(chooseBannerIds(candidates, selectedZoneId, selectedZoneId ? 7 : 8, size.width, size.height));
+    const chosen = new Set(chooseBannerIds(candidates, selectedZoneId, selectedZoneId ? 7 : 12, size.width, size.height));
     for (const zone of visibleZones) {
       const button = buttons.current.get(zone.id);
       if (button) button.parentElement!.style.visibility = chosen.has(zone.id) ? 'visible' : 'hidden';
@@ -43,7 +44,7 @@ export function ZoneLabels({ selectedZoneId, onSelectZone }: {
       <button ref={element => {
         if (element) buttons.current.set(zone.id, element);
         else buttons.current.delete(zone.id);
-      }} className={`zone-banner${selectedZoneId === zone.id ? ' is-selected' : ''}`}
+      }} className={`zone-banner${zone.id.startsWith('bay-') ? ' is-bay' : ''}${selectedZoneId === zone.id ? ' is-selected' : ''}`}
         aria-pressed={selectedZoneId === zone.id} aria-label={`Focus ${zone.label}: ${zone.location}`}
         onPointerDown={event => event.stopPropagation()} onPointerUp={event => event.stopPropagation()}
         onClick={event => { event.stopPropagation(); onSelectZone(zone.id); }}>

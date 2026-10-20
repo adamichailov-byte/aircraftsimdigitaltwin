@@ -1,6 +1,6 @@
 import { BufferGeometry, Float32BufferAttribute, Shape, ExtrudeGeometry, Vector2, LatheGeometry } from 'three';
 
-export type AircraftVariant = 'sectioned' | 'bare' | 'systems' | 'engine-install' | 'cabin' | 'complete' | 'paint';
+export type AircraftVariant = 'sectioned' | 'joined-fuselage' | 'bare' | 'systems' | 'engine-install' | 'cabin' | 'ready-for-paint' | 'complete' | 'paint';
 export type Cutaway = 'systems' | 'cabin';
 
 // Original A-100 design, in metres. +X is forward; ground is Y=0.

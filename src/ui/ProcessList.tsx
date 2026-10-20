@@ -28,14 +28,14 @@ export function ProcessList({ open, onToggle, selectedZoneId, onSelectZone }: {
               {selectable ? <button type="button" className="process-select" aria-pressed={selectedZoneId === zone.id}
                 onClick={() => onSelectZone(zone.id)}>
                 <strong>{step.title}</strong><small>{zone.label === step.title ? zone.location : zone.label}</small>
-              </button> : <span className="process-step">
+              </button> : <span className="process-step" aria-current={selectedZoneId === zone.id ? 'step' : undefined}>
                 <strong>{step.title}</strong><small>{zone.location}</small>
               </span>}
             </li>;
           })}
         </ol>
       </section>)}
-      <p className="process-note">A teaching sequence, not a takt plan. Systems work may overlap. Paint follows cabin fit-out and precedes final checks here; flight testing is off site. Composite inbound example: rail brings major sections, cargo aircraft brings a wing kit, and road delivery brings supplier kits. Routes, loads and readings are illustrative; vehicles remain parked in this increment.</p>
+      <p className="process-note">Synthetic teaching sequence. Bay 06 ground checks precede paint, flight-line acceptance, an offsite flight and delivery. Aircraft wait for finite parts, stations, shared crews, equipment and transport. Receipts require inspection, kitting and a forklift drop before use.</p>
     </>}
   </aside>;
 }

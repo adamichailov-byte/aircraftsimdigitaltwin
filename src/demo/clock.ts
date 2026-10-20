@@ -46,6 +46,13 @@ export class DemoClock {
     this.update({ ...this.snapshot });
   }
 
+  seek(seconds: number) {
+    if (!Number.isFinite(seconds)) return;
+    this.elapsed = Math.max(0, seconds);
+    this.snapshot = { ...this.snapshot, revision: this.snapshot.revision + 1 };
+    this.listeners.forEach(listener => listener());
+  }
+
   advance(deltaSeconds: number) {
     if (this.snapshot.playing && Number.isFinite(deltaSeconds) && deltaSeconds > 0) {
       this.elapsed += Math.min(deltaSeconds, 0.1) * this.snapshot.speed;

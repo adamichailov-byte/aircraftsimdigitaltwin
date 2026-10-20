@@ -7,12 +7,16 @@ export type BuildingSpec = {
   heightM: number;
   doorWidthM: number;
   doorHeightM: number;
+  additionalEndDoors?: { centerOffsetM: number; widthM: number; heightM: number }[];
+  northDoor?: {centerOffsetM:number;widthM:number;heightM:number};
+  westDoor?: {centerOffsetM:number;widthM:number;heightM:number};
 };
 
 export const parcel = { lengthM: 1100, widthM: 850 };
 export const buildings: BuildingSpec[] = [
   { id: 'assembly', label: 'FINAL ASSEMBLY', centerM: [-40, -30], lengthM: 440,
-    widthM: 440, heightM: 32, doorWidthM: 90, doorHeightM: 24 },
+    widthM: 440, heightM: 32, doorWidthM: 90, doorHeightM: 24,
+    additionalEndDoors: [{ centerOffsetM: 115, widthM: 90, heightM: 24 }] },
   { id: 'receiving', label: 'RECEIVING / KITTING', centerM: [-385, -30], lengthM: 140,
     widthM: 180, heightM: 18, doorWidthM: 12, doorHeightM: 8 },
   { id: 'support', label: 'PARTS / INVENTORY', centerM: [300, -155], lengthM: 140,
@@ -33,5 +37,7 @@ export const tow = { widthM: 60, eastLaneXM: 230, turningZM: 170 };
 
 // All aircraft production stays inside the square hall. Side buildings hold
 // parts and inventory; only the main hall has aircraft-sized doors.
-export const homePositionM: [number, number, number] = [800, 950, 1150];
+// Pull the default view in enough to make the campus the focus while retaining
+// a clear margin around the apron and receiving yard at desktop size.
+export const homePositionM: [number, number, number] = [760, 903, 1092];
 export const homeTargetM: [number, number, number] = [0, 8, 0];
