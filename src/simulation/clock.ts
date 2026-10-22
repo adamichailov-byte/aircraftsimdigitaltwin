@@ -8,8 +8,8 @@ export class SimulationClock {
   private listeners = new Set<() => void>();
   private anchorWall = 0;
   private anchorInstant: number;
-  private readonly start: number;
-  private readonly end: number;
+  private start: number;
+  private end: number;
   private readonly now: () => number;
 
   constructor(start: number, end: number, now: () => number = () => performance.now()) {
@@ -61,7 +61,10 @@ export class SimulationClock {
     this.publish({ ...this.snapshot, instant, playing: false });
   }
 
-  reset() { this.seek(this.start); }
+  reset(start=this.start,end=this.end) {
+    if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||end<=start)throw new RangeError('Invalid clock horizon.');
+    this.start=start;this.end=end;this.seek(start);
+  }
 }
 
 export function bindSimulationClock(clock: SimulationClock, doc: Pick<Document, 'hidden' | 'addEventListener' | 'removeEventListener'> = document) {

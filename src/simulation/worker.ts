@@ -3,10 +3,13 @@ import type {FleetConfig,FleetSnapshot} from './flow.ts';
 import {activityTimes,masterPlan} from './schedule.ts';
 import type {ActivityTimes,MasterPlan} from './schedule.ts';
 import type {FlowEvent} from './flow.ts';
+import {runExperimentBatch} from './uncertainty.ts';
+import type {BatchInput,BatchUpdate} from './uncertainty.ts';
 export type WorkerCommand={runId:string;requestId:number;type:'start';config:FleetConfig}
+  |{runId:string;requestId:number;type:'experiment';input:BatchInput}
   |{runId:string;requestId:number;type:'plan';config:FleetConfig}
   |{runId:string;requestId:number;type:'advance'|'run'|'event'|'operation'|'blocked-example'|'material-example'|'resource-example'|'logistics-example'|'outage-example'|'rework-example'|'cancel';target?:number};
-export type WorkerReply={runId:string;requestId:number;snapshot?:FleetSnapshot;plan?:MasterPlan;actual?:ActivityTimes;events?:readonly FlowEvent[];done:boolean;state:'idle'|'computing'|'cancelled'|'failed';error?:string};
+export type WorkerReply={runId:string;requestId:number;snapshot?:FleetSnapshot;plan?:MasterPlan;actual?:ActivityTimes;events?:readonly FlowEvent[];experiment?:BatchUpdate;done:boolean;state:'idle'|'computing'|'cancelled'|'failed';error?:string};
 
 let engine:FleetEngine|null=null,generation=0,sentEventCount=0;
 function exampleReady(command:WorkerCommand,snapshot:FleetSnapshot){
@@ -37,6 +40,10 @@ self.onmessage=(event:MessageEvent<WorkerCommand>)=>{
   }
   const current=++generation;
   try {
+    if(command.type==='experiment'){
+      void runExperimentBatch(command.input,{cancelled:()=>generation!==current,update:experiment=>self.postMessage({runId:command.runId,requestId:command.requestId,experiment,done:experiment.done,state:experiment.done?'idle':'computing'})})
+        .catch(error=>{throw new Error(String(error));});return;
+    }
     if(command.type==='start'){
       engine=new FleetEngine(command.config,command.runId);sentEventCount=0;
       send({runId:command.runId,requestId:command.requestId,snapshot:engine.getSnapshot(),done:true,state:'idle'});return;
@@ -44,7 +51,7 @@ self.onmessage=(event:MessageEvent<WorkerCommand>)=>{
     if(command.type==='plan'){
       const referenceConfig={...command.config,...command.config.scheduleReference,
         disruptions:command.config.disruptions?{...command.config.disruptions,quality:{...command.config.disruptions.quality,failureProbabilityByTask:{}}}:undefined};
-      const reference=new FleetEngine(referenceConfig,`${command.runId}-plan`);
+      const reference=new FleetEngine(referenceConfig,`${command.runId}-plan`,{planning:true});
       // Forecasts use the real capacity/route/material dispatcher, in bounded worker slices.
       // They never advance the actual engine or enter its event ledger.
       const planBatch=()=>{

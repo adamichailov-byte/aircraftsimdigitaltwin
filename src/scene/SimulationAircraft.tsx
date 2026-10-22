@@ -7,14 +7,14 @@ import {AircraftTowTug} from '../models/TransportKit';
 import {isSelectionClick} from '../demo/entities';
 import type {FleetClient} from '../simulation/client';
 import {fleetPose} from '../simulation/selectors';
-import {aircraftAlert} from '../simulation/alerts';
+import {aircraftStatusAlert} from '../simulation/alerts';
 import {lateAircraftActivities} from '../simulation/schedule';
 
 const origin:[number,number,number]=[0,0,0];
-function SerialAircraft({client,id,onSelect}:{client:FleetClient;id:string;onSelect:(id:string)=>void}){
+function SerialAircraft({client,id,onSelect,selected}:{client:FleetClient;id:string;onSelect:(id:string)=>void;selected:boolean}){
   const group=useRef<Group>(null);
   useSyncExternalStore(client.subscribe,()=>{const view=client.getSnapshot(),a=view.displayFleet?.aircraft.find(a=>a.id===id);
-    return `${view.history.cursor??'live'}/${view.displayFleet?.instant??''}/${a?.pilot.aircraft.completedMilestones.join('|')??''}/${a?.state??''}/${a?.reasons.join('|')??''}/${lateAircraftActivities(view.plan,view.displayActual,view.displayFleet?.instant??client.config.recipe.start,id).length}`;});
+    return `${view.plan?'planned':'planning'}/${view.history.cursor??'live'}/${view.displayFleet?.instant??''}/${a?.pilot.aircraft.completedMilestones.join('|')??''}/${a?.state??''}/${a?.reasons.join('|')??''}/${lateAircraftActivities(view.plan,view.displayActual,view.displayFleet?.instant??client.config.recipe.start,id).length}`;});
   const view=client.getSnapshot(),snapshot=view.displayFleet,a=snapshot?.aircraft.find(a=>a.id===id);
   useFrame(()=>{
     const currentView=client.getSnapshot(),live=currentView.displayFleet,aircraft=live?.aircraft.find(a=>a.id===id);
@@ -24,11 +24,13 @@ function SerialAircraft({client,id,onSelect}:{client:FleetClient;id:string;onSel
   });
   if(!snapshot||!a)return null;
   const pose=fleetPose(client.config,snapshot,a);
-  const lateCount=lateAircraftActivities(view.plan,view.displayActual,snapshot.instant,id).length;
-  const alert=aircraftAlert(a.reasons,lateCount);
+  const alert=aircraftStatusAlert(a,view.plan,view.displayActual,snapshot.instant);
   return <group ref={group} name={`fleet-${id}`} position={pose.positionM} rotation={[0,pose.heading,0]} visible={pose.visible}
     onClick={event=>{event.stopPropagation();if(isSelectionClick(event.button,event.delta))onSelect(id);}}>
     <Aircraft id={id} variant={pose.variant} components={pose.components} positionM={origin}/>
+    {selected&&<mesh rotation={[-Math.PI/2,0,0]} position={[0,0.15,0]} raycast={()=>null}>
+      <ringGeometry args={[34,34.5,64]}/><meshBasicMaterial color="#CEDE62" transparent opacity={0.65} depthWrite={false}/>
+    </mesh>}
     {a.state==='transferring'&&<group name={`assigned-${snapshot.transfers.find(t=>t.serialId===id)?.tugId}`} position={[27,0,0]} rotation={[0,Math.PI,0]}><AircraftTowTug/></group>}
     {alert&&<Html position={[0,11,0]} center zIndexRange={[1,1]}>
       <button type="button" className={`aircraft-alert-chip is-${alert.kind}`}
@@ -42,9 +44,9 @@ function SerialAircraft({client,id,onSelect}:{client:FleetClient;id:string;onSel
     </Html>}
   </group>;
 }
-export function SimulationAircraft({client,onSelect}:{client:FleetClient;onSelect:(id:string)=>void}){
+export function SimulationAircraft({client,onSelect,selectedId=null}:{client:FleetClient;onSelect:(id:string)=>void;selectedId?:string|null}){
   const invalidate=useThree(state=>state.invalidate);
   const ids=useSyncExternalStore(client.subscribe,()=>client.getSnapshot().displayFleet?.aircraft.filter(a=>a.state!=='delivered').map(a=>a.id).join('|')??'');
   useEffect(()=>client.subscribe(invalidate),[client,invalidate]);
-  return <group name="simulated-fleet">{ids.split('|').filter(Boolean).map(id=><SerialAircraft key={id} id={id} client={client} onSelect={onSelect}/>)}</group>;
+  return <group name="simulated-fleet">{ids.split('|').filter(Boolean).map(id=><SerialAircraft key={id} id={id} client={client} onSelect={onSelect} selected={id===selectedId}/>)}</group>;
 }

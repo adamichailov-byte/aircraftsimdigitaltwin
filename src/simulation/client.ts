@@ -5,6 +5,10 @@ import type {WorkerCommand,WorkerReply} from './worker.ts';
 import type {ActivityTimes,MasterPlan} from './schedule.ts';
 import {HistoryArchive,historyActivityTimes,historyCheckpointAt,nearestHistoryCheckpoint,projectHistory} from './history.ts';
 import type {HistoryLedger} from './history.ts';
+import {freezeConfiguration} from './scenario.ts';
+import {recordRun} from './compare.ts';
+import type {RecordedRun} from './compare.ts';
+import {ExperimentClient} from './experiment-client.ts';
 
 export type FleetView={fleet:FleetSnapshot|null;displayFleet:FleetSnapshot|null;plan:MasterPlan|null;planState:'building'|'ready'|'failed';actual:ActivityTimes;displayActual:ActivityTimes;
   history:HistoryLedger;state:'starting'|'idle'|'computing'|'cancelled'|'failed';error:string;runId:string;progressInstant:number|null};
@@ -13,7 +17,15 @@ type WorkerPort={postMessage:(command:WorkerCommand)=>void;terminate:()=>void;on
  * Run + request IDs reject late replies, including post-reset messages. */
 export class FleetClient {
   readonly clock:SimulationClock;
+  readonly experiments=new ExperimentClient();
   config:FleetConfig;
+  baseline:RecordedRun|null=null;
+  freezeBaseline(){
+    if(this.view.state!=='idle')throw new RangeError('Finish the current calculation before freezing a baseline.');
+    this.baseline=recordRun(this.config,this.view.fleet,this.view.history.events);
+    this.publish({...this.view});
+  }
+  clearBaseline(){this.baseline=null;this.publish({...this.view});}
   private worker:WorkerPort|null=null;
   private planner:WorkerPort|null=null;
   private listeners=new Set<()=>void>();
@@ -64,10 +76,11 @@ export class FleetClient {
   start(){this.reset(this.config);}
   private pauseClock(){this.suppressClock=true;this.clock.setPlaying(false);this.suppressClock=false;}
   reset(config=this.config,example:'blocked-example'|'material-example'|'resource-example'|'logistics-example'|'outage-example'|'rework-example'|null=null){
+    this.experiments.cancel();
     this.pauseClock();this.worker?.terminate();this.worker=null;this.planner?.terminate();this.planner=null;
-    this.config=config;this.pendingTarget=null;this.deferred=null;this.afterStart=example;
+    this.config=freezeConfiguration(structuredClone(config));config=this.config;this.pendingTarget=null;this.deferred=null;this.afterStart=example;
     this.archive=new HistoryArchive(config.eventLimit);this.historyCursor=null;
-    this.publish(this.withHistory({fleet:null,plan:null,planState:'building',actual:{},state:'starting',error:'',runId:`fleet-${++this.run}`,progressInstant:null}));this.clock.reset();
+    this.publish(this.withHistory({fleet:null,plan:null,planState:'building',actual:{},state:'starting',error:'',runId:`fleet-${++this.run}`,progressInstant:null}));this.clock.reset(config.recipe.start,config.recipe.end);
     this.worker=this.factory();this.worker.onmessage=event=>this.receive(event.data);
     this.worker.onerror=event=>{this.busy=false;this.pauseClock();this.publish({...this.view,state:'failed',error:event.message});};
     this.send({type:'start',config});
@@ -87,7 +100,10 @@ export class FleetClient {
   }
   /** Public for the transport boundary test; does not interpret old-run payloads. */
   receive(reply:WorkerReply){
-    if(reply.runId!==this.view.runId||reply.requestId!==this.activeRequest)return;
+    if(reply.runId!==this.view.runId)return;
+    // Worker messages are ordered. Cancellation supersedes the displayed request,
+    // but its preceding same-run event delta must still reach the retained ledger.
+    if(reply.requestId!==this.activeRequest){if(reply.requestId<this.activeRequest)this.archive.append(reply.events??[]);return;}
     this.archive.append(reply.events??[]);
     if(reply.snapshot)this.archive.record(reply.snapshot,this.historyCursor);
     // Progress is not a new displayed world. Committing every calculation batch
@@ -132,5 +148,5 @@ export class FleetClient {
     if(this.view.fleet&&this.clock.getSnapshot().instant!==this.view.fleet.instant)this.clock.seek(this.view.fleet.instant);
     this.clock.setPlaying(playing);
   }
-  dispose(){this.pauseClock();this.worker?.terminate();this.worker=null;this.planner?.terminate();this.planner=null;this.busy=false;}
+  dispose(){this.experiments.dispose();this.pauseClock();this.worker?.terminate();this.worker=null;this.planner?.terminate();this.planner=null;this.busy=false;}
 }

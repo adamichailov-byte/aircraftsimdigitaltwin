@@ -44,7 +44,7 @@ export function ZoneLabels({ selectedZoneId, onSelectZone }: {
       <button ref={element => {
         if (element) buttons.current.set(zone.id, element);
         else buttons.current.delete(zone.id);
-      }} className={`zone-banner${zone.id.startsWith('bay-') ? ' is-bay' : ''}${selectedZoneId === zone.id ? ' is-selected' : ''}`}
+      }} className={`zone-banner is-bay${selectedZoneId === zone.id ? ' is-selected' : ''}`}
         aria-pressed={selectedZoneId === zone.id} aria-label={`Focus ${zone.label}: ${zone.location}`}
         onPointerDown={event => event.stopPropagation()} onPointerUp={event => event.stopPropagation()}
         onClick={event => { event.stopPropagation(); onSelectZone(zone.id); }}>

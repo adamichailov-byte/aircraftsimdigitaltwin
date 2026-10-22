@@ -15,6 +15,7 @@ import { simulationFixture } from '../simulation/transfers';
 import { fleetBuildings } from '../simulation/flow';
 import type {FleetClient} from '../simulation/client';
 import {StationMotion} from './StationMotion';
+import {StationWorkcells} from './StationWorkcells';
 
 function FloorText({ text, at, width = 130, color = scenePalette.floorInk }: { text: string; at: [number, number]; width?: number; color?: string }) {
   const texture = useMemo(() => {
@@ -47,10 +48,10 @@ function Outline({ at, size, color = scenePalette.platformDeck, stroke = 0.45 }:
   </group>;
 }
 
-export function Campus({ roofs, showBuildings, showBeams, clearances, selectedZoneId, fleet = true, children,client }: {
+export function Campus({ roofs, showBuildings, showBeams, clearances, selectedZoneId, fleet = true, children,client,reducedQuality=false }: {
   roofs: boolean; showBuildings: boolean; showBeams: boolean; clearances: boolean;
   selectedZoneId: string | null;
-  fleet?: boolean; children?: ReactNode; client?:FleetClient;
+  fleet?: boolean; children?: ReactNode; client?:FleetClient; reducedQuality?:boolean;
 }) {
   const invalidate = useThree(state => state.invalidate);
   useEffect(() => { invalidate(); }, [roofs, showBuildings, showBeams, clearances, invalidate]);
@@ -142,10 +143,12 @@ export function Campus({ roofs, showBuildings, showBeams, clearances, selectedZo
     {showBuildings && <PaintEnclosure roofs={roofs} doorsOpen={fleet} />}
     {fixtures.filter(fixture => fixture.id !== 'receiving-pallet-c'
       && (!fleet || fixture.kind!=='rack' || fixture.zoneId!=='stores')
+      && (!fleet || !client || fixture.kind!=='rack' || !fixture.zoneId.startsWith('bay-'))
       && (showBuildings || !['receiving', 'stores'].includes(fixture.zoneId)))
       .map(fixture => <StationFixture key={fixture.id} fixture={fleet ? simulationFixture(fixture) : fixture} fullness={fleet&&fixture.zoneId==='receiving'?0:undefined} />)}
     {children}
     {fleet&&client&&<StationMotion client={client}/>}
+    {fleet&&client&&<StationWorkcells client={client} reducedQuality={reducedQuality}/>}
     {showBuildings && <StationTooling perimeterClearance={fleet} />}
     {clearances && <group>
       {bays.map(bay => <mesh key={bay.id} position={[bay.centerM[0], 9.2, bay.centerM[1]]}>

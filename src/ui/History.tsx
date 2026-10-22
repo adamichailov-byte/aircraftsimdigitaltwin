@@ -11,7 +11,6 @@ export function History({client,onClose,onSelectAircraft}:{client:FleetClient;on
   const points=ledger.checkpoints,index=ledger.cursor===null?Math.max(0,points.length-1):Math.max(0,points.findIndex(point=>point.instant===ledger.cursor));
   const checkpoint=points[index],at=ledger.cursor??view.fleet?.instant??client.config.recipe.start;
   const visible=useMemo(()=>ledger.events.filter(event=>event.instant<=at).slice(-40),[ledger.events,ledger.events.length,at]);
-  const byId=useMemo(()=>new Map(ledger.events.map(event=>[event.id,event])),[ledger.events,ledger.events.length]);
   const moveTo=(instant:number)=>{const point=nearestHistoryCheckpoint(ledger,instant);if(point)client.setHistoryCursor(point.instant);};
   return <aside className="inspector task-inspector history-inspector" aria-label="Simulation history">
     <header className="inspector-heading"><div><span className="eyebrow">RECORDED RUN · CAUSAL EVENT LOG</span><h2>History</h2></div><button onClick={onClose} aria-label="Close history">Close</button></header>
@@ -35,10 +34,6 @@ export function History({client,onClose,onSelectAircraft}:{client:FleetClient;on
           <button className="history-event" onClick={()=>{moveTo(event.instant);onClose();if(event.serialId)onSelectAircraft(event.serialId);}}>
             <time>{date.format(event.instant)}</time><strong>{event.serialId||event.entityIds.join(', ')||'Plant'}</strong><span>{label(event)}</span>
           </button>
-          {event.causeEventIds.length>0&&<details><summary>{event.causeEventIds.length} linked {event.causeEventIds.length===1?'cause':'causes'}</summary>
-            <ul>{event.causeEventIds.map((id,ordinal)=>{const cause=byId.get(id);return <li key={`${id}/${ordinal}`}><button onClick={()=>moveTo(cause?.instant??event.instant)}>
-              {cause?`${date.format(cause.instant)} · ${cause.serialId||'Plant'} · ${label(cause)}`:`Recorded cause ${id}`}</button></li>;})}</ul>
-          </details>}
         </li>)}
       </ol>
       {visible.length===0&&<p className="pilot-summary">No events have been recorded by this time.</p>}

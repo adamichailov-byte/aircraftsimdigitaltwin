@@ -39,5 +39,5 @@ export const tow = { widthM: 60, eastLaneXM: 230, turningZM: 170 };
 // parts and inventory; only the main hall has aircraft-sized doors.
 // Pull the default view in enough to make the campus the focus while retaining
 // a clear margin around the apron and receiving yard at desktop size.
-export const homePositionM: [number, number, number] = [760, 903, 1092];
+export const homePositionM: [number, number, number] = [610, 740, 890];
 export const homeTargetM: [number, number, number] = [0, 8, 0];

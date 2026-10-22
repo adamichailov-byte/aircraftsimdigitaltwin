@@ -105,7 +105,7 @@ export function CargoUnloading() {
 }
 
 /** Fleet mode mounts only this causal carrier, never the legacy delivery loops. */
-export function SimulationLogistics({client,onSelectJob,showLabels}:{client:FleetClient;onSelectJob:(id:string)=>void;showLabels:boolean}){
+export function SimulationLogistics({client,onSelectJob}:{client:FleetClient;onSelectJob:(id:string)=>void}){
   const {displayFleet:fleet}=useSyncExternalStore(client.subscribe,client.getSnapshot);
   const actor=useRef<Group>(null),payload=useRef<Group>(null),invalidate=useThree(s=>s.invalidate);
   useEffect(()=>client.subscribe(invalidate),[client,invalidate]);
@@ -145,12 +145,9 @@ export function SimulationLogistics({client,onSelectJob,showLabels}:{client:Flee
     {fixtures.filter(f=>f.kind==='rack'&&f.zoneId==='stores').map(f=>{
       const skus=f.id==='stores-rack-east'?['engine']:f.id==='stores-rack-west'?['major-section-kit','wing-pair-kit','tail-kit','gear-kit']
         :f.id==='stores-rack-centre'?['join-kit','electrical-kit','hydraulic-kit','cabin-services-kit','cabin-interior-kit','coating-kit']:[];
-      const lots=stock.filter(l=>skus.includes(l.sku)),available=lots.reduce((n,l)=>n+l.available,0),inHandling=lots.reduce((n,l)=>n+l.inHandling,0);
+      const lots=stock.filter(l=>skus.includes(l.sku)),available=lots.reduce((n,l)=>n+l.available,0);
       const buffer=f.id==='stores-rack-east'?8:skus.length*4;
-      return <group key={f.id}><StationFixture fixture={f} fullness={buffer?available/buffer:0}/>
-        {showLabels&&skus.length>0&&<Html position={[f.positionM[0],10,f.positionM[2]]} center zIndexRange={[1,1]}><span className="stock-marker">
-          {f.id==='stores-rack-east'?'Engines':'Kits'} · {available} usable · {inHandling} receiving</span></Html>}
-      </group>;
+      return <group key={f.id}><StationFixture fixture={f} fullness={buffer?available/buffer:0}/></group>;
     })}
   </group>;
 }

@@ -42,14 +42,6 @@ export function TaskInspector({session,onClose,onFocus}:{session:PilotSession;on
         {task.completedAt!==null&&<small>Finished {format.format(task.completedAt)}</small>}
       </li>;
     })}</ol>
-    <details className="pilot-assumptions"><summary>Availability and tow assumptions</summary>
-      <p>Synthetic single-aircraft recipe v1. One serial; all destinations free. Fleet mode applies shared crew and equipment pools.</p>
-      <p>Tow: 2m/s forward, 1m/s reverse, 1°/s manoeuvring pivot; 5 minutes each to connect/disconnect. Starts in a staffed period, then continues through breaks. Cure and flight use elapsed time.</p>
-      {tasks.map(task=>{const recipe=byId.get(task.taskId)!;return <p key={task.taskId}><strong>{task.label}</strong>: {Object.entries({...recipe.crewRequirements,...recipe.equipmentRequirements,...recipe.materialRequirements}).map(([key,value])=>`${key} × ${value}`).join(', ')||'No crew or material'}</p>;})}
-    </details>
-    <details className="pilot-history"><summary>Recent activity · {snapshot.history.length} {snapshot.history.length===1?'event':'events'}</summary><ol>{snapshot.history.slice(-16).map(event=><li key={event.id}>
-      <time dateTime={new Date(event.instant).toISOString()}>{format.format(event.instant)}</time><span>{event.payload.label} · {event.kind.replace('task-','').replaceAll('-',' ')}</span>
-    </li>)}</ol></details>
     <p className="pilot-limit">One aircraft · no queues or production totals yet. Surrounding equipment is scenery.</p>
   </aside>;
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Html } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Mesh, PerspectiveCamera, Vector3 } from 'three';
+import { PerspectiveCamera, Vector3 } from 'three';
 import type { OrbitControls } from 'three-stdlib';
 import { homePositionM, homeTargetM } from '../demo/campus';
 import { fitCameraToBounds } from './camera-focus';
@@ -17,10 +17,9 @@ const samplePosition = new Vector3();
 
 /** Developer-only controlled benchmark. Never runs on the normal demo URL. */
 export function RenderDiagnostics({onFreeze,contextLabel}:{onFreeze:()=>void;contextLabel:string}) {
-  const { camera, controls, scene, gl, size, invalidate } = useThree();
+  const { camera, controls, gl, size, invalidate } = useThree();
   const run = useRef<Run | null>(null);
   const [report, setReport] = useState('Ready: 5s warm-up, then 30s sample. Current fleet will be paused.');
-  const [inventory, setInventory] = useState('');
   const firstRenderedFrameMs = useRef<number | null>(null);
   const orbit = controls as OrbitControls | null;
 
@@ -43,15 +42,6 @@ export function RenderDiagnostics({onFreeze,contextLabel}:{onFreeze:()=>void;con
     camera.position.fromArray(fit.position);
     orbit.target.fromArray(fit.target);
     orbit.update();
-    const geometryCounts: Record<string, number> = {};
-    const geometries = new Set(), materials = new Set();
-    scene.traverse(object => {
-      if (!(object instanceof Mesh)) return;
-      geometryCounts[object.geometry.type] = (geometryCounts[object.geometry.type] ?? 0) + 1;
-      geometries.add(object.geometry);
-      (Array.isArray(object.material) ? object.material : [object.material]).forEach(material => materials.add(material));
-    });
-    setInventory(JSON.stringify({ meshesByGeometry: geometryCounts, geometries: geometries.size, materials: materials.size }));
     run.current = { view, started: performance.now(), last: 0, published: 0, intervals: [],
       target: new Vector3(...fit.target), offset: new Vector3(...fit.position).sub(new Vector3(...fit.target)),
       calls: [], triangles: [] };
@@ -101,7 +91,7 @@ export function RenderDiagnostics({onFreeze,contextLabel}:{onFreeze:()=>void;con
   });
 
   return <Html fullscreen zIndexRange={[3, 3]} style={{pointerEvents:'none'}}>
-    <section style={{ position: 'absolute', right: 12, top: 12, maxWidth: 470,
+    <section style={{ position: 'absolute', right: 12, top: 112, maxWidth: 470,
       pointerEvents:'auto', padding: 10, borderRadius: 5, color: '#fff', background: '#17242df2', font: '12px/1.45 ui-monospace, monospace' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, color: '#17242d' }}>
         <button onClick={() => start('overview')}>Measure overview</button>
@@ -111,7 +101,6 @@ export function RenderDiagnostics({onFreeze,contextLabel}:{onFreeze:()=>void;con
           invalidate(); setReport('Shadows ' + (gl.shadowMap.enabled ? 'on' : 'off') + '. Start a fresh sample.'); }}>Toggle shadows</button>
       </div>
       <output data-testid="render-diagnostics" style={{ display: 'block', overflowWrap: 'anywhere' }}>{report}</output>
-      <details><summary>Scene inventory</summary><output data-testid="scene-inventory">{inventory}</output></details>
     </section>
   </Html>;
 }

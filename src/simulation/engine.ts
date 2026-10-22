@@ -28,13 +28,15 @@ export class TaskEngine {
   private materials?:TaskMaterials;
   private resources?:TaskResources;
   private quality?:QualityPlan;
+  private sampleDuration?:(task:TaskDefinition,attempt:number)=>number;
   private qualityStates=new Map<string,'failed'|'passed'|'repair'|'reinspection'|'hold'>();
   private qualityTaskIds=new Map<string,Set<string>>();
 
   constructor(definition: PilotDefinition, runId = 'pilot-1', canStart: (task: TaskDefinition) => boolean = () => true,
-    materials?:TaskMaterials,resources?:TaskResources,disruptions?:{quality?:QualityPlan}) {
+    materials?:TaskMaterials,resources?:TaskResources,disruptions?:{quality?:QualityPlan;sampleDuration?:(task:TaskDefinition,attempt:number)=>number}) {
     this.materials=materials;
     this.resources=resources;
+    this.sampleDuration=disruptions?.sampleDuration;
     this.quality=disruptions?.quality?Object.freeze({...disruptions.quality,
       failureProbabilityByTask:Object.freeze({...disruptions.quality.failureProbabilityByTask})}):undefined;
     if(this.quality){validateQualityPlan(this.quality);for(const taskId of Object.keys(this.quality.failureProbabilityByTask))
@@ -52,7 +54,7 @@ export class TaskEngine {
       shifts: Object.freeze(definition.calendar.shifts.map(shift => Object.freeze({...shift}))),
       boundaries: Object.freeze(definition.calendar.boundaries.map(boundary => Object.freeze({...boundary}))),
     }), tasks: Object.freeze(definition.tasks.map(task => Object.freeze({
-      ...task, prerequisites: Object.freeze([...task.prerequisites]), completionMilestones: Object.freeze([...task.completionMilestones]),
+      ...task,durationMs:this.sampleDuration?.(task,0)??task.durationMs, prerequisites: Object.freeze([...task.prerequisites]), completionMilestones: Object.freeze([...task.completionMilestones]),
       crewRequirements: Object.freeze({...task.crewRequirements}), materialRequirements: Object.freeze({...task.materialRequirements}),
       equipmentRequirements: Object.freeze({...task.equipmentRequirements}),
       qualityCheck:task.qualityCheck?Object.freeze({...task.qualityCheck,repairCrewRequirements:Object.freeze({...task.qualityCheck.repairCrewRequirements})}):undefined,
@@ -186,13 +188,14 @@ export class TaskEngine {
     const repairId=`${sourceId}/repair-${attempt}`,recheckId=`${sourceId}/recheck-${attempt+1}`;
     const subject=(this.taskById.get(sourceId)?.definition.label??task.definition.label)
       .replace(/^(Inspect|Verify|Integrated|Pre-paint|Ground|Post-flight|Customer)\s*/i,'');
-    const repair:TaskDefinition=Object.freeze({id:repairId,label:`Repair · ${subject||task.definition.label}`,
+    let repair:TaskDefinition=Object.freeze({id:repairId,label:`Repair · ${subject||task.definition.label}`,
       stationId:task.definition.stationId,prerequisites:Object.freeze([task.definition.id]),durationMs:4*3_600_000,
       finishWithinDay:task.definition.finishWithinDay,
       crewRequirements:Object.freeze({...check.repairCrewRequirements}),materialRequirements:Object.freeze({}),completionMilestones:Object.freeze([])});
-    const recheck:TaskDefinition=Object.freeze({...task.definition,id:recheckId,label:`Reinspect · ${subject||task.definition.label}`,
+    let recheck:TaskDefinition=Object.freeze({...task.definition,id:recheckId,label:`Reinspect · ${subject||task.definition.label}`,
       prerequisites:Object.freeze([repairId]),durationMs:2*3_600_000,materialRequirements:Object.freeze({}),
       qualityCheck:Object.freeze({...check,originalTaskId:sourceId,attempt:attempt+1})});
+    if(this.sampleDuration){repair=Object.freeze({...repair,durationMs:this.sampleDuration(repair,attempt)});recheck=Object.freeze({...recheck,durationMs:this.sampleDuration(recheck,attempt+1)});}
     this.tasks.push({definition:repair,state:'pending',remaining:repair.durationMs,startedAt:null,completedAt:null,startEventId:null,completionEventId:null,generation:0},
       {definition:recheck,state:'pending',remaining:recheck.durationMs,startedAt:null,completedAt:null,startEventId:null,completionEventId:null,generation:0});
     ids.add(recheckId);this.qualityStates.set(repairId,'repair');this.qualityStates.set(recheckId,'reinspection');

@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "modelVersion": "A100-engine-AS15-v1",
+  "assumptionVersion": "A100-daily-jobs-v1",
+  "scenarioVersion": "A100-scenario-v1",
+  "costVersion": "A100-costs-v1",
+  "settings": {
+    "orderCount": 24,
+    "horizonDays": 90,
+    "releaseEveryWorkdays": 2,
+    "wipLimit": 12,
+    "crewScale": 1,
+    "holdBuffers": true,
+    "stations": {
+      "bay-1": {
+        "bufferHours": 0.5,
+        "workScale": 1
+      },
+      "bay-2": {
+        "bufferHours": 0.5,
+        "workScale": 1
+      },
+      "bay-3": {
+        "bufferHours": 0.5,
+        "workScale": 1
+      },
+      "bay-4": {
+        "bufferHours": 0.5,
+        "workScale": 1
+      },
+      "bay-5": {
+        "bufferHours": 0.5,
+        "workScale": 1
+      },
+      "bay-6": {
+        "bufferHours": 0.5,
+        "workScale": 1
+      },
+      "paint": {
+        "bufferHours": 0.5,
+        "workScale": 1
+      },
+      "flightline": {
+        "bufferHours": 0.5,
+        "workScale": 1
+      },
+      "delivery": {
+        "bufferHours": 0.5,
+        "workScale": 1
+      }
+    },
+    "costs": {
+      "wipUnitValue": 1000000,
+      "annualHoldingPercent": 20,
+      "crewHourlyCost": 50,
+      "deliveryContribution": 500000
+    },
+    "costRates": {
+      "version": "A100-costs-v1",
+      "laborPerHourCents": 6000,
+      "overtimePremiumPerHourCents": 3000,
+      "carryingPerDayCents": 10000,
+      "latenessPerDayCents": 50000,
+      "overtimeShiftLabels": [],
+      "materialUnitCents": {
+        "major-section-kit": 100000,
+        "join-kit": 100000,
+        "wing-pair-kit": 100000,
+        "tail-kit": 100000,
+        "electrical-kit": 100000,
+        "hydraulic-kit": 100000,
+        "gear-kit": 100000,
+        "engine": 1000000,
+        "cabin-services-kit": 100000,
+        "cabin-interior-kit": 100000,
+        "coating-kit": 100000
+      }
+    },
+    "scenario": {
+      "version": 1,
+      "seed": 42,
+      "supply": {
+        "sku": "engine",
+        "receiptId": "receipt-4-engine",
+        "delayDays": 0,
+        "quantityPercent": 100
+      },
+      "crews": {},
+      "factors": {},
+      "failureProbability": 0,
+      "outage": null,
+      "calendar": {
+        "timeZone": "America/New_York",
+        "excludedDates": [],
+        "shifts": [
+          {
+            "label": "Shift 1",
+            "weekdays": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "startMinute": 360,
+            "endMinute": 840,
+            "breaks": [
+              {
+                "startMinute": 600,
+                "endMinute": 630
+              }
+            ]
+          },
+          {
+            "label": "Shift 2",
+            "weekdays": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "startMinute": 840,
+            "endMinute": 1320,
+            "breaks": [
+              {
+                "startMinute": 1080,
+                "endMinute": 1110
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

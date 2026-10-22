@@ -1,5 +1,5 @@
 import {TaskEngine} from './engine.ts';
-import {a100Pilot,a100Materials,a100Resources} from './fixtures/a100.ts';
+import {a100Pilot,a100Materials,a100Resources,a100CostRates} from './fixtures/a100.ts';
 import {Inventory} from './inventory.ts';
 import type {InventoryPlan,InventorySnapshot,MaterialPosting} from './inventory.ts';
 import {ResourceManager} from './resources.ts';
@@ -12,13 +12,20 @@ import type {Transfer} from './transfers.ts';
 import type {DisruptionPlan} from './disruptions.ts';
 import type {PilotDefinition, PilotSnapshot, TaskDefinition} from './tasks.ts';
 import {buildings} from '../demo/campus.ts';
+import {defaultStationBufferMs,stationBufferDeadline} from './station-buffer.ts';
+import type {ExperimentSettings} from './experiments.ts';
+import type {CostRates} from './costs.ts';
+import {validateCostRates} from './costs.ts';
+import type {ScenarioIdentity} from './scenario.ts';
+import {sampleTask,validateVariability} from './random.ts';
+import type {VariabilityPlan,RealizedDraw} from './random.ts';
 
 export const fleetBuildings=buildings.map(b=>b.id==='assembly'?{...b,
   northDoor:{centerOffsetM:144,widthM:90,heightM:24},westDoor:{centerOffsetM:140,widthM:110,heightM:24}}
   :b.id==='receiving'?{...b,centerM:[-395,-30] as [number,number]}:b);
 
-export type FleetConfig={name:string;recipe:PilotDefinition;orders:readonly {serialId:string;releaseAt:number}[];
-  wipLimit:number;tugCount:number;queueCapacity:number;eventLimit:number;materials:InventoryPlan;resources:ResourcePlan;
+export type FleetConfig={name:string;recipe:PilotDefinition;orders:readonly {serialId:string;releaseAt:number;dueAt?:number}[];costRates?:CostRates;scenario?:ScenarioIdentity;variability?:VariabilityPlan;
+  wipLimit:number;tugCount:number;queueCapacity:number;eventLimit:number;materials:InventoryPlan;resources:ResourcePlan;stationBufferMs?:number;stationBuffersMs?:Readonly<Record<string,number>>;holdStationBuffers?:boolean;experiment?:ExperimentSettings;
   disruptions?:DisruptionPlan;scheduleReference?:{label:string;recipe:PilotDefinition;materials:InventoryPlan;resources:ResourcePlan}};
 export type FlowEvent={runId:string;sequence:number;instant:number;kind:string;serialId:string;
   id:string;entityIds:readonly string[];causeEventIds:readonly string[];payloadVersion:1;taskId?:string;
@@ -26,8 +33,8 @@ export type FlowEvent={runId:string;sequence:number;instant:number;kind:string;s
   material?:MaterialPosting;resource?:ResourcePosting;handling?:HandlingPosting};
 export type FleetTransfer={id:string;serialId:string;taskId:string;routeId:string;fromSlot:string;toSlot:string;
   start:number;end:number;clearAt:number;cleared:boolean;tugId:string;segments:readonly string[];startEventId:string};
-export type FleetAircraft={id:string;admittedAt:number;slot:string;state:'queued'|'working'|'off-shift'|'blocked'|'transferring'|'offsite'|'delivered';
-  reasons:readonly string[];tasks:readonly TaskDefinition[];pilot:PilotSnapshot};
+export type FleetAircraft={id:string;admittedAt:number;slot:string;state:'queued'|'buffering'|'working'|'off-shift'|'blocked'|'transferring'|'offsite'|'delivered';
+  reasons:readonly string[];flowBuffered?:boolean;stationBufferUntil?:number|null;tasks:readonly TaskDefinition[];pilot:PilotSnapshot};
 export type FleetSnapshot={runId:string;revision:number;instant:number;status:'active'|'complete'|'blocked'|'horizon-reached'|'event-limit';
   diagnosis:string;aircraft:readonly FleetAircraft[];slots:readonly {id:string;occupiedBy:string|null;reservedBy:string|null}[];
   transfers:readonly FleetTransfer[];admitted:number;delivered:number;wip:number;upstream:number;unreleased:number;
@@ -66,13 +73,13 @@ export function fleetFixture(name:'baseline'|'slow-bay-3'|'late-engines'|'limite
     :name==='limited-inspectors'?'Simultaneous releases · 2 inspectors':'Slow Bay03 · 4× work',recipe,
     orders:Array.from({length:['receiving-demo','wing-crane-outage','inspection-rework'].includes(name)?1:count},(_,i)=>({serialId:`A100-${String(i+1).padStart(3,'0')}`,
       releaseAt:name==='limited-inspectors'?recipe.start:dates[i*2]})),
-    materials,resources,disruptions,wipLimit:12,tugCount:2,queueCapacity:3,eventLimit:250000,
+    materials,resources,disruptions,costRates:structuredClone(a100CostRates),...(name==='baseline'?{holdStationBuffers:true}:{}),wipLimit:12,tugCount:2,queueCapacity:3,eventLimit:250000,
     ...(name==='baseline'?{}:{scheduleReference:{label:'Nominal capacity plan · same orders / receipt dates · standard work, crew and inspection',
       recipe:{...recipe,tasks:a100Pilot.tasks},resources:a100Resources,
       materials:{...materials,receipts:materials.receipts.map(({inspectionNotBefore:_window,...receipt})=>receipt)}}})};
 }
 
-type AircraftRecord={id:string;admittedAt:number;slot:string;engine:TaskEngine;readyAt:number|null;historyRead:number;delivered:boolean;grant:string|null};
+type AircraftRecord={id:string;admittedAt:number;slot:string;engine:TaskEngine;readyAt:number|null;bufferDeadline:number|null;historyRead:number;delivered:boolean;grant:string|null};
 type Slot={id:string;occupiedBy:string|null;reservedBy:string|null};
 const stopStatuses=['complete','blocked','horizon-reached','event-limit'];
 function compare(a:string,b:string){return a<b?-1:a>b?1:0;}
@@ -96,7 +103,16 @@ export class FleetEngine {
   private inventory:Inventory;
   private resources:ResourceManager;
   private handling:ReceivingJobs;
-  constructor(config:FleetConfig,runId='fleet-1') {
+  private options:{planning?:boolean;onDraw?:(draw:RealizedDraw)=>void};
+  constructor(config:FleetConfig,runId='fleet-1',options:{planning?:boolean;onDraw?:(draw:RealizedDraw)=>void}={}) {
+    this.options={...options};
+    if(config.variability)validateVariability(config.variability);
+    const rates=structuredClone(config.costRates??a100CostRates);validateCostRates(rates);
+    for(const order of config.orders)if(order.dueAt!==undefined&&(!Number.isSafeInteger(order.dueAt)||order.dueAt<order.releaseAt))throw new RangeError('Order due date must be at or after release.');
+    const costRates=Object.freeze({...rates,materialUnitCents:Object.freeze({...rates.materialUnitCents}),overtimeShiftLabels:Object.freeze([...rates.overtimeShiftLabels])});
+    if(config.stationBuffersMs)for(const value of Object.values(config.stationBuffersMs))if(!Number.isSafeInteger(value)||value<0)throw new RangeError('Station buffers must be nonnegative integer milliseconds.');
+    if(!Number.isSafeInteger(config.stationBufferMs??defaultStationBufferMs)||(config.stationBufferMs??defaultStationBufferMs)<0)
+      throw new RangeError('Station buffer must be nonnegative integer milliseconds.');
     if(config.orders.length>60||new Set(config.orders.map(o=>o.serialId)).size!==config.orders.length)throw new RangeError('Order serial IDs must be unique; maximum60.');
     for(const [label,value,max] of [['WIP',config.wipLimit,20],['tugs',config.tugCount,2],['queue',config.queueCapacity,3],['event limit',config.eventLimit,250000]] as const)
       if(!Number.isSafeInteger(value)||value<0||value>max||(label==='event limit'&&value===0))throw new RangeError(`Invalid ${label} capacity.`);
@@ -112,7 +128,7 @@ export class FleetEngine {
     const validated=new TaskEngine(config.recipe,'validate',()=>false).definition;
     const disruptions=config.disruptions?Object.freeze({...config.disruptions,quality:Object.freeze({...config.disruptions.quality,
       failureProbabilityByTask:Object.freeze({...config.disruptions.quality.failureProbabilityByTask})})}):undefined;
-    this.config=Object.freeze({...config,disruptions,recipe:validated,orders:Object.freeze(config.orders.map(o=>Object.freeze({...o})).sort((a,b)=>a.releaseAt-b.releaseAt||compare(a.serialId,b.serialId)))});
+    this.config=Object.freeze({...config,costRates,disruptions,variability:config.variability?Object.freeze({...config.variability}):undefined,recipe:validated,orders:Object.freeze(config.orders.map(o=>Object.freeze({...o})).sort((a,b)=>a.releaseAt-b.releaseAt||compare(a.serialId,b.serialId)))});
     this.runId=runId;this.instant=config.recipe.start;
     this.inventory=new Inventory(config.materials,posting=>this.record(posting.kind,posting.serialId,
       posting.receiptId?`${posting.kind==='material-delivered'?'Usable at destination':'Arrived at receiving'} · ${posting.receiptId}`:`${posting.kind} · ${posting.taskId}`,
@@ -189,8 +205,10 @@ export class FleetEngine {
           acquire:(task,serialId,instant)=>this.resources.acquire(task,serialId,instant),
           release:(task,serialId,instant,keepEquipment,causes)=>this.resources.release(task,serialId,instant,keepEquipment,causes),
           outageBlockers:(task,instant)=>this.resources.outageBlockers(task,instant)},
-        {quality:this.config.disruptions?.quality});
-      a={id:order.serialId,admittedAt:this.instant,slot:slot.id,engine,readyAt:null,historyRead:0,delivered:false,grant:null};
+        {quality:this.config.disruptions?.quality,sampleDuration:this.config.variability?(task,attempt)=>{
+          const draw=sampleTask(this.config.variability!,order.serialId,task,attempt);if(draw)this.options.onDraw?.(draw);return draw?.value??task.durationMs;
+        }:undefined});
+      a={id:order.serialId,admittedAt:this.instant,slot:slot.id,engine,readyAt:null,bufferDeadline:null,historyRead:0,delivered:false,grant:null};
       slot.occupiedBy=a.id;this.aircraft.push(a);this.orderIndex++;
       this.record('admitted',a.id,`Admitted to ${slot.id}`,{toSlot:slot.id});
     }
@@ -198,6 +216,9 @@ export class FleetEngine {
   private readyTransfer(a:AircraftRecord) {
     const snapshot=a.engine.getSnapshot();
     return a.engine.getTaskDefinitions().find(task=>task.kind==='transfer'&&snapshot.tasks.some(t=>t.taskId===task.id&&t.state==='pending'&&t.waitingFor.length===0));
+  }
+  private bufferUntil(a:AircraftRecord){
+    return a.bufferDeadline??this.instant;
   }
   private segments(routeId:string) {
     if(routeId.startsWith('queue-'))return ['intake','north-row'];
@@ -237,9 +258,13 @@ export class FleetEngine {
     this.admit();
     if(this.failure||this.instant>=this.config.recipe.end)return;
     const candidates=this.aircraft.filter(a=>!a.delivered&&!a.grant).map(a=>({a,task:this.readyTransfer(a)})).filter(item=>item.task);
-    for(const {a} of candidates)if(a.readyAt===null)a.readyAt=this.instant;
+    for(const {a} of candidates)if(a.readyAt===null){
+      a.readyAt=this.instant;
+      a.bufferDeadline=a.slot.startsWith('queue-')?this.instant:stationBufferDeadline(this.config.recipe.calendar,this.instant,this.config.stationBuffersMs?.[a.slot==='delivery-2'?'delivery':a.slot]??this.config.stationBufferMs??defaultStationBufferMs);
+    }
     candidates.sort((x,y)=>x.a.readyAt!-y.a.readyAt!||compare(x.a.id,y.a.id));
     for(const {a,task} of candidates) {
+      if((this.options.planning||this.config.holdStationBuffers)&&this.instant<this.bufferUntil(a))continue;
       if(this.blockers(task!).length)continue;
       const r=fleetRoutes[task!.transferRouteId!],to=this.slots.find(s=>s.id===r.toStation);
       if(r.fromStation!==a.slot)throw new RangeError(`Route source does not match ${a.id}'s occupied station.`);
@@ -247,7 +272,7 @@ export class FleetEngine {
       const t:FleetTransfer={id:`${a.id}/${task!.id}`,serialId:a.id,taskId:task!.id,routeId:r.id,fromSlot:a.slot,toSlot:r.toStation,
         start:this.instant,end:this.instant+r.durationMs,clearAt:this.instant+this.clearOffset(r.id),cleared:false,tugId,segments:this.segments(r.id),startEventId:''};
       if(to)to.reservedBy=a.id;
-      this.active.push(t);a.grant=task!.id;a.readyAt=null;
+      this.active.push(t);a.grant=task!.id;a.readyAt=null;a.bufferDeadline=null;
       t.startEventId=this.record('transfer-started',a.id,`${r.fromStation} → ${r.toStation}`,{transferId:t.id,fromSlot:t.fromSlot,toSlot:t.toSlot,tugId,segments:t.segments})??'';
       a.engine.redispatch();this.collect(a);
     }
@@ -263,6 +288,8 @@ export class FleetEngine {
     const outage=this.resources.nextOutageBoundary(this.instant);if(outage!==null&&outage<=this.config.recipe.end)values.push(outage);
     const nextOrder=this.config.orders.slice(this.orderIndex).find(o=>o.releaseAt>this.instant);if(nextOrder)values.push(nextOrder.releaseAt);
     for(const a of this.aircraft)if(!a.delivered){const next=a.engine.getSnapshot().nextEventInstant;if(next!==null)values.push(next);}
+    // Wake at the allowance boundary even if no production event occurs there.
+    for(const a of this.aircraft)if(a.readyAt!==null){const until=this.bufferUntil(a);if(until>this.instant)values.push(until);}
     for(const t of this.active){values.push(t.end);if(!t.cleared)values.push(t.clearAt);}
     return values.length?Math.min(...values):null;
   }
@@ -316,6 +343,7 @@ export class FleetEngine {
       const first=impossible[0];this.deadlockReason=`No progress: ${first.a.id} · ${first.task.label} · ${(first.task.resourceBlockers??[]).join('; ')||'required capacity is unavailable on every shift'}`;
       return;
     }
+    if(live.some(a=>(this.options.planning||this.config.holdStationBuffers)&&a.readyAt!==null&&this.instant<this.bufferUntil(a)))return;
     if(live.every(a=>!a.engine.getSnapshot().tasks.some(t=>t.startedAt!==null&&t.state!=='complete'))){
       this.deadlockReason=`No eligible task or transfer: ${live.map(a=>`${a.id} at ${a.slot}`).join(', ')}. Check downstream space and recipe station routing.`;
     }
@@ -344,11 +372,12 @@ export class FleetEngine {
       :status==='horizon-reached'?'Horizon reached with unfinished orders':stranded?(admissionBlockers.join('; ')||'No eligible work or future event; unresolved station/route dependencies'):'';
     this.snapshot={runId:this.runId,revision:++this.revision,instant:this.instant,status,diagnosis,
       aircraft:this.aircraft.map(a=>{const pending=this.readyTransfer(a),pilot=a.engine.getSnapshot();
-        const reasons=pending?this.blockers(pending):pilot.tasks.flatMap(t=>[...(t.materialBlockers??[]),...(t.resourceBlockers??[])]);
+        const holding=!!pending&&!!this.config.holdStationBuffers&&this.instant<this.bufferUntil(a);
+        const reasons=pending?(holding?[]:this.blockers(pending)):pilot.tasks.flatMap(t=>[...(t.materialBlockers??[]),...(t.resourceBlockers??[])]);
         const qualityHold=pilot.tasks.find(task=>task.state==='quality-hold');
         if(qualityHold)reasons.push(`Quality hold · ${qualityHold.label} at ${a.slot}`);
-        const state=a.delivered?'delivered':a.grant?'transferring':a.slot.startsWith('queue-')?'queued':pending?'blocked':pilot.tasks.some(t=>t.taskId==='flight'&&t.state==='running')?'offsite':pilot.tasks.some(t=>t.state==='running')?'working':reasons.length?'blocked':'off-shift';
-        return {id:a.id,admittedAt:a.admittedAt,slot:a.slot,state,reasons,tasks:a.engine.getTaskDefinitions(),
+        const state=a.delivered?'delivered':a.grant?'transferring':a.slot.startsWith('queue-')?'queued':holding?'buffering':pending?'blocked':pilot.tasks.some(t=>t.taskId==='flight'&&t.state==='running')?'offsite':pilot.tasks.some(t=>t.state==='running')?'working':reasons.length?'blocked':'off-shift';
+        return {id:a.id,admittedAt:a.admittedAt,slot:a.slot,state,reasons,flowBuffered:!!pending&&this.instant<this.bufferUntil(a),stationBufferUntil:pending?a.bufferDeadline:null,tasks:a.engine.getTaskDefinitions(),
           pilot:{...pilot,history:pilot.history.slice(-16)}};}),
       slots:this.slots.map(s=>({...s})),transfers:this.active.map(t=>({...t})),admitted:this.aircraft.length,delivered,wip,
       upstream:this.config.orders.slice(this.orderIndex).filter(o=>o.releaseAt<=this.instant).length,

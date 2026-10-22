@@ -4,9 +4,15 @@ import type { TaskDefinition } from '../tasks.ts';
 import { transfers } from '../transfers.ts';
 import type {InventoryPlan} from '../inventory.ts';
 import type {ResourcePlan} from '../resources.ts';
+import type {CostRates} from '../costs.ts';
 
 const calendar = compileCalendar(defaultCalendar, '2027-01-04', '2027-04-05');
 const HOUR = 3_600_000;
+/** Author assumptions, uncalibrated USD, revision 2026-10-20. Arithmetic examples only. */
+export const a100CostRates:CostRates={version:'A100-costs-v1',laborPerHourCents:6000,overtimePremiumPerHourCents:3000,
+  carryingPerDayCents:10000,latenessPerDayCents:50000,overtimeShiftLabels:[],
+  materialUnitCents:{'major-section-kit':100000,'join-kit':100000,'wing-pair-kit':100000,'tail-kit':100000,'electrical-kit':100000,
+    'hydraulic-kit':100000,'gear-kit':100000,engine:1000000,'cabin-services-kit':100000,'cabin-interior-kit':100000,'coating-kit':100000}};
 /** Synthetic Bay01 recipe v1. Availability is assumed, not inventory/resource allocation. */
 export const bay01Pilot: PilotDefinition = {
   calendar, start: localInstant('2027-01-04T06:00', calendar.timeZone),
@@ -100,8 +106,10 @@ packages('cabin-services','bay-5',[
 packages('cabin','bay-5',[
   ['sidewalls','Fit cabin sidewalls',4],['overhead','Fit overhead units',4],
   ['seats','Install seat groups',4],['closeout','Verify cabin attachments',4],
-],{fitout:8},{'cabin-interior-kit':1},['cabin-installed']);
-work('inspect-cabin','Inspect cabin','bay-5',4,{quality:2});
+],{fitout:8},{'cabin-interior-kit':1},['cabin-installed'],{},['cabin-services']);
+// After utility rough-in, the two fitout teams can work in parallel (6 + 8 people).
+// Inspection joins both branches; neither team can release the aircraft alone.
+work('inspect-cabin','Inspect cabin','bay-5',4,{quality:2},{},[],{},false,[previous,'cabin-services-closeout']);
 tow('bay-5-to-6');
 packages('power-on','bay-6',[
   ['energize','Energize and verify electrical power',4],['closeout','Exercise ground systems',4],

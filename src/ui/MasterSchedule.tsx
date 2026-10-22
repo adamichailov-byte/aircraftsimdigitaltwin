@@ -1,14 +1,15 @@
 import {useMemo,useState,useSyncExternalStore} from 'react';
 import type {FleetClient} from '../simulation/client';
 import {scheduleState} from '../simulation/schedule';
+import {defaultStationBufferMs} from '../simulation/station-buffer';
 
 const date=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
 const stamp=(at:number|null|undefined)=>at==null?'—':date.format(at);
 function delay(ms:number){return ms<3600000?`${Math.ceil(ms/60000)}m`:`${(ms/3600000).toFixed(1)}h`;}
 
-export function MasterSchedule({client,onAircraft,onReceipt,onOpen}:{client:FleetClient;onAircraft:(id:string)=>void;onReceipt:(id:string)=>void;onOpen:()=>void}){
+export function MasterSchedule({client,onAircraft,onReceipt,onOpen,open,setOpen}:{client:FleetClient;onAircraft:(id:string)=>void;onReceipt:(id:string)=>void;onOpen:()=>void;open:boolean;setOpen:(open:boolean)=>void}){
   const view=useSyncExternalStore(client.subscribe,client.getSnapshot),fleet=view.displayFleet,plan=view.plan,actual=view.displayActual;
-  const [open,setOpen]=useState(false),[filter,setFilter]=useState('all'),[search,setSearch]=useState(''),[limit,setLimit]=useState(60);
+  const [filter,setFilter]=useState('all'),[search,setSearch]=useState(''),[limit,setLimit]=useState(60);
   const rows=useMemo(()=>{
     if(!plan)return[];
     const known=new Set(plan.activities.map(row=>row.id));
@@ -35,7 +36,7 @@ export function MasterSchedule({client,onAircraft,onReceipt,onOpen}:{client:Flee
     </div>
     {open&&<div className="schedule-drawer">
       <header><div><span className="eyebrow">PLANNED / ACTUAL · NEW YORK TIME</span><h2>Plant master schedule</h2></div><button onClick={()=>setOpen(false)} aria-label="Close master schedule">Close</button></header>
-      <p className="schedule-basis">{view.history.cursor!==null?`Recorded state · ${stamp(view.history.cursor)}. `:''}{plan?.label??(view.planState==='failed'?'Plan calculation failed · reset fleet to retry':'Building capacity plan in the background')}. Dispatch follows shared parts, crew, equipment, space and route constraints. Dates stay fixed until reset.</p>
+      <p className="schedule-basis">{view.history.cursor!==null?`Recorded state · ${stamp(view.history.cursor)}. `:''}{plan?.label??(view.planState==='failed'?'Plan calculation failed · reset fleet to retry':'Building capacity plan in the background')}. Dispatch follows shared parts, crew, equipment, space and route constraints. {client.config.stationBuffersMs?'The plan includes the station buffers from Simulation settings before each departure.':`The plan includes ${(client.config.stationBufferMs??defaultStationBufferMs)/60000} staffed minutes of handoff buffer per station before departure;`} breaks and closed shifts do not consume it. Dates stay fixed until reset.</p>
       {plan?.diagnosis&&<p className="schedule-plan-limit">Plan limit: {plan.diagnosis}. A dash means no feasible time was scheduled within the horizon.</p>}
       <div className="schedule-filters"><label>Show<select aria-label="Schedule filter" value={filter} onChange={e=>{setFilter(e.target.value);setLimit(60);}}>
         <option value="all">All activities</option><option value="active">Started / unfinished</option><option value="overdue">Behind plan</option>

@@ -37,15 +37,6 @@ export function Materials({fleet,aircraft,config,station,readOnly=false,onReceip
         </div>;
       })}
     </div>)}
-    <details><summary>Issued lots & reservations</summary>
-      {trace.length?<ul>{trace.map(r=><li key={r.key}><strong>{aircraft?.tasks.find(t=>t.id===r.taskId)?.label??r.taskId} · {r.state}</strong>
-        {r.allocations.map(a=><span key={a.lotId}>{a.lotId} · {a.quantity} {a.sku}</span>)}</li>)}</ul>:<p>No lots bound to this serial yet.</p>}
-    </details>
-    <details><summary>Plant stock ledger</summary><p className="material-note">Opening + received = on hand + issued + scrapped. Held and quarantined quantities are subsets of on hand.</p>
-      {Object.keys(materialCatalog).map(sku=>{const lots=stock(sku),sum=(key:'opening'|'received'|'onHand'|'reserved'|'quarantined'|'consumed'|'scrapped'|'inHandling')=>lots.reduce((n,l)=>n+l[key],0);
-        return <p className="material-ledger" key={sku}><strong>{materialCatalog[sku].label}</strong><span>{sum('opening')} opening + {sum('received')} received = {sum('onHand')} on hand + {sum('consumed')} issued + {sum('scrapped')} scrapped</span><small>{sum('reserved')} reserved · {sum('quarantined')} quarantined · {sum('inHandling')} receiving (unavailable)</small></p>;
-      })}
-    </details>
   </section>;
 }
 
@@ -69,10 +60,6 @@ export function LogisticsInspector({client,selectedId,onSelect,onClose,onFollow,
       <p>{carrier?`${carrier.id} · ${carrier.stage} · ${carrier.state}`:ready.length?`Idle · ${ready.length} ${ready.length===1?'receipt is':'receipts are'} preparing or waiting. ${ready[0].job?.blockers.join(' · ')||'Inspection and kitting must finish before loading.'}`:
         upcoming?`Idle · next dock arrival ${date.format(upcoming.receipt.at)}. Opening stock does not need this receiving trip.`:'Idle · all scheduled receiving work is finished or held.'}</p>
       {carrier&&<button onClick={()=>onFollow(carrier.id)}>Follow current assignment</button>}
-      <details><summary>Job queue · {ready.length} pending · {queue.filter(q=>!q.job).length} future</summary><ol>{queue.map(({receipt:r,job:j,status})=><li key={r.id}>
-        <button aria-current={r.id===receipt?.id?'true':undefined} onClick={()=>onSelect(r.id)}>{materialCatalog[r.lot.sku]?.label??r.lot.sku} · {r.id}</button>
-        <small>{date.format(r.at)} · {status}{j?.blockers.length?` · ${j.blockers.join(' · ')}`:''}</small>
-      </li>)}</ol></details>
     </section>
     <label className="pilot-stage-select">Receipt<select aria-label="Receipt job" value={receipt?.id??''} onChange={e=>onSelect(e.target.value)}>
       {!receipt&&<option value="">No scheduled receipts</option>}{client.config.materials.receipts.map(r=><option key={r.id} value={r.id}>{r.id}</option>)}
@@ -98,8 +85,6 @@ export function LogisticsInspector({client,selectedId,onSelect,onClose,onFollow,
       </li>)}</ol>
       {affected?.map(a=><button className="handling-aircraft" key={a.id} onClick={()=>onAircraft(a.id)}>Inspect {a.id} · waiting for {receipt.lot.sku}</button>)}
       {job?.dropAt!=null&&fleet?.aircraft.filter(a=>a.pilot.tasks.some(t=>t.taskId==='engines'&&t.startedAt===job.dropAt)).map(a=><button className="handling-aircraft" key={a.id} onClick={()=>onAircraft(a.id)}>Inspect {a.id} · engine task started at drop</button>)}
-      <details className="pilot-history"><summary>Recent receiving events</summary><ol>{fleet?.history.filter(e=>e.handling?.jobId===receipt.id||e.material?.receiptId===receipt.id).map(e=><li key={e.id}><time>{date.format(e.instant)}</time><span>{e.label}</span></li>)}</ol></details>
     </>:<p className="material-note">Opening inventory is already usable. This run has no replenishment receipts.</p>}
-    <details className="pilot-assumptions"><summary>Handling assumptions</summary><p>One abstract receipt lot per job; the crate represents its whole quantity. Shared logistics crew, one kit forklift and 2m/s service-road travel. Inspection, kitting, loading, travel and unloading all pause for breaks and night closure. The forklift and crossing locks remain held until its empty return completes.</p><p>Central stores is the usable location for replenishment; onward bay distribution is abstracted. Rack fill compares aggregate usable stock to the opening buffer, capped visually; excess is still in the ledger. No additional rack capacity is implied. Rail and cargo supply loops are suppressed in simulation mode.</p></details>
   </aside>;
 }

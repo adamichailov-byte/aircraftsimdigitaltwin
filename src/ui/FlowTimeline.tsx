@@ -7,13 +7,13 @@ import type {TimelineSegment} from './flow-timeline-data';
 const timeLabel=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
 const laneIndex=(id:string)=>FLOW_STATIONS.findIndex(station=>station.id===id);
 const styles:Record<TimelineSegment['kind'],{stroke:string;dash?:string;width:number}>={
-  productive:{stroke:'#287b70',width:3.2},blocked:{stroke:'#bd3038',dash:'6 3',width:4.2},offshift:{stroke:'#87939a',dash:'1 4',width:3},
-  transfer:{stroke:'#596f82',dash:'',width:2.5},offsite:{stroke:'#3973a4',dash:'2 2',width:3.2},delivery:{stroke:'#287b70',width:1},
+  productive:{stroke:'#A7C98A',width:3.2},blocked:{stroke:'#DF7D70',dash:'6 3',width:4.2},offshift:{stroke:'#A5A79F',dash:'1 4',width:3},
+  transfer:{stroke:'#B9BDA8',dash:'',width:2.5},offsite:{stroke:'#D8AF63',dash:'2 2',width:3.2},delivery:{stroke:'#A7C98A',width:1},
 };
 
-export function FlowTimeline({client,onAircraft,selectedId}:{client:FleetClient;onAircraft:(id:string)=>void;selectedId:string|null}){
+export function FlowTimeline({client,onAircraft,selectedId,collapsed,setCollapsed}:{client:FleetClient;onAircraft:(id:string)=>void;selectedId:string|null;collapsed:boolean;setCollapsed:(collapsed:boolean)=>void}){
   const view=useSyncExternalStore(client.subscribe,client.getSnapshot),fleet=view.displayFleet,ledger=view.history;
-  const [height,setHeight]=useState(250),[collapsed,setCollapsed]=useState(false),[filter,setFilter]=useState('all'),[fitAll,setFitAll]=useState(false),[tableOpen,setTableOpen]=useState(false);
+  const [height,setHeight]=useState(250),[filter,setFilter]=useState('all'),[fitAll,setFitAll]=useState(false),[tableOpen,setTableOpen]=useState(false);
   const panel=useRef<HTMLElement>(null);
   const at=ledger.cursor??fleet?.instant??client.config.recipe.start;
   const checkpoints=ledger.checkpoints,index=ledger.cursor===null?Math.max(0,checkpoints.length-1):Math.max(0,checkpoints.findIndex(point=>point.instant===ledger.cursor));

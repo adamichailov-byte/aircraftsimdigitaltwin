@@ -5,22 +5,18 @@ import type { FleetClient } from '../simulation/client';
 import { workingTimeBetween } from '../simulation/calendar';
 import { stationActionAt, stationActionDefinitions } from '../demo/station-actions';
 import { Block } from './Building';
+import {equipmentProgress} from '../simulation/station-presentation';
 
 const steel = '#71858b';
 const darkSteel = '#40545b';
 const safety = '#c2a657';
 const robotOrange = '#d27637';
 
-function taskProgress(client:FleetClient,stationId:string,taskId:string){
+function taskProgress(client:FleetClient,stationId:string,equipment:string,taskPrefix?:string){
   const view=client.getSnapshot(),fleet=view.displayFleet;if(!fleet)return null;
-  const aircraft=fleet.aircraft.find(candidate=>candidate.slot===stationId);if(!aircraft)return null;
-  const task=aircraft.pilot.tasks.find(candidate=>candidate.taskId===taskId);
-  const recipe=aircraft.tasks.find(candidate=>candidate.id===taskId);
-  if(!task||!recipe||task.startedAt===null||task.state==='complete')return null;
-  if(task.state!=='running')return {paused:true,progress:0};
-  const renderInstant=view.history.cursor===null?Math.max(fleet.instant,Math.min(client.clock.getInstant(),client.config.recipe.end)):fleet.instant;
+  const renderInstant=view.history.cursor===null?Math.max(fleet.instant,Math.min(client.clock.getInstant(),fleet.nextEventInstant??fleet.instant)):fleet.instant;
   const elapsed=workingTimeBetween(client.config.recipe.calendar,fleet.instant,renderInstant);
-  return {paused:false,progress:Math.max(0,Math.min(0.999,(recipe.durationMs-task.remainingWorkMs+elapsed)/recipe.durationMs))};
+  return equipmentProgress(fleet,stationId,equipment,elapsed,taskPrefix);
 }
 
 function WingCraneMotion({ client }: { client:FleetClient }) {
@@ -29,7 +25,7 @@ function WingCraneMotion({ client }: { client:FleetClient }) {
   const cable = useRef<Mesh>(null);
   const yoke = useRef<Group>(null);
   useFrame(() => {
-    const progress=taskProgress(client,'bay-2','wings');if(progress?.paused||!trolley.current||!cable.current||!yoke.current)return;
+    const progress=taskProgress(client,'bay-2','wing-crane');if(!trolley.current||!cable.current||!yoke.current)return;
     const pose=progress?stationActionAt(definition.id,progress.progress*18):stationActionAt(definition.id,18);
     if (!pose) return;
     trolley.current.position.x = pose.trolleyXM;
@@ -67,7 +63,8 @@ function EngineHoistMotion({ client }: { client:FleetClient }) {
   const cable = useRef<Mesh>(null);
   const engine = useRef<Group>(null);
   useFrame(() => {
-    const progress=taskProgress(client,'bay-4','engines');if(progress?.paused||!hoist.current||!cable.current||!engine.current)return;
+    const progress=taskProgress(client,'bay-4','lift','engines');if(!hoist.current||!cable.current||!engine.current)return;
+    engine.current.visible=progress!==null;
     const pose=progress?stationActionAt(definition.id,20+progress.progress*18):stationActionAt(definition.id,38);
     if (!pose) return;
     hoist.current.position.x = pose.trolleyXM;
@@ -117,7 +114,7 @@ function PaintCarriageMotion({ client }: { client:FleetClient }) {
   const elbow = useRef<Group>(null);
   const wrist = useRef<Group>(null);
   useFrame(() => {
-    const progress=taskProgress(client,'paint','spray');if(progress?.paused||!carriage.current||!sprayers.current||!armRoot.current||!elbow.current||!wrist.current)return;
+    const progress=taskProgress(client,'paint','paint-head');if(!carriage.current||!sprayers.current||!armRoot.current||!elbow.current||!wrist.current)return;
     const pose=progress?stationActionAt(definition.id,40+progress.progress*18):stationActionAt(definition.id,58);
     if (!pose) return;
     carriage.current.position.x = pose.trolleyXM;
@@ -126,7 +123,7 @@ function PaintCarriageMotion({ client }: { client:FleetClient }) {
     armRoot.current.rotation.z = -0.12 + sweep * 0.2;
     elbow.current.rotation.z = 0.58 - sweep * 0.16;
     wrist.current.rotation.z = -0.38 + sweep * 0.08;
-    sprayers.current.visible = pose.sprayActive;
+    sprayers.current.visible = !!progress?.working && pose.sprayActive;
   });
 
   return <group position={definition.positionM} name="paint-carriage-motion">

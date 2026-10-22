@@ -3,17 +3,17 @@ import type { MeshStandardMaterialParameters } from 'three';
 
 // Scene colors describe surfaces; operational status colors remain in the UI.
 export const scenePalette = {
-  concrete: '#A9AEA9', apron: '#818A91', ground: '#657361', siteEdge: '#515E50',
-  steel: '#344653', cladding: '#C8CFD1', skylight: '#97AFB8', roofSeam: '#AAB7BD',
-  tooling: '#365F72', equipment: '#C89935', platformDeck: '#7F9199',
+  concrete: '#434744', apron: '#333735', ground: '#282D2B', siteEdge: '#202523',
+  steel: '#656D69', cladding: '#737C76', skylight: '#89958E', roofSeam: '#5C6760',
+  tooling: '#788574', equipment: '#AB975C', platformDeck: '#7B857F',
   primer: '#92AC73', paint: '#F0F1EB', rubber: '#202D35',
-  road: '#616F79', pedestrian: '#789D9D', marking: '#F0C94E',
-  floorInk: '#344653', apronInk: '#F0F1EB', paintFloor: '#B8C4C3',
-  background: '#E7ECEF', backdrop: '#D7DDD9',
+  road: '#303633', pedestrian: '#667466', marking: '#9EA67F',
+  floorInk: '#CDD1BF', apronInk: '#C3C8B7', paintFloor: '#6D7565',
+  background: '#1B211E', backdrop: '#242B27',
 } as const;
 
 export const daylight = {
-  sky: '#FFFFFF', ground: '#9CA69A', fill: 0.85, sun: 1.8,
+  sky: '#E9F0EE', ground: '#69756E', fill: 1.25, sun: 1.35,
 } as const;
 
 export const finishes = {
