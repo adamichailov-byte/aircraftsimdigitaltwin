@@ -24,11 +24,11 @@ Results → Costs shows the five-category ledger using applied rates, recorded m
 - Crews and equipment are finite shared capacity. A task obtains its full required bundle together or waits. Adding crew changes concurrency, not a task's duration. Assigned equipment may be retained through a shift pause according to its modeled policy.
 - Aircraft remain unpainted through Bay 06, enter the paint enclosure nose-first, reverse out, then turn toward the flight line. A four-hour offsite acceptance flight retains its return stand. Delivery alternates between two stands.
 
-## Materials and receiving rules
+## Inventory and deliveries
 
-Opening stock is usable unless quarantined. A replenishment receipt is unavailable until inspection, kitting, loading, travel and unloading complete. The forklift and shared route reservations stay occupied through the empty return. Breaks and nights pause its work. Received stock becomes usable at unloading completion, once. Material reservations are distinct from issues; releasing a reservation returns the stock.
+Inventory means stock currently on hand. An inventory delivery is an inbound batch, shown in the application data as a receipt. Opening inventory is usable unless quarantined. A delivery is unavailable until inspection, kitting, loading, travel and unloading complete. The forklift and shared route reservations stay occupied through the empty return. Breaks and nights pause its work. Delivered stock becomes usable at unloading completion, once. Material reservations are distinct from issues; releasing a reservation returns the stock.
 
-Central stores is the modeled receiving destination. Distribution from stores to individual bays is abstracted. Rack fullness is a visual indicator relative to opening stock, capped for display; it is not a capacity limit or a literal count of physical parts. Aggregate kits represent quantities of work, not manufacturer part numbers.
+Central stores is the modeled inventory destination. Distribution from stores to individual bays is abstracted. Rack fullness is a visual indicator relative to opening stock, capped for display; it is not a capacity limit or a literal count of physical parts. Aggregate kits represent quantities of work, not manufacturer part numbers.
 
 
-The aircraft inspector shows current station tasks, progress, blockers, late work and task-level crew/equipment assignments. The receiving workspace shows the selected receipt's status and current stock. Production results keep the selected period's totals and contributions visible. Expandable help text, causal-event lists, recent-event lists, and secondary inventory ledgers have been removed from the interface to reduce clutter; they are not needed to understand the headline outputs.
+The aircraft inspector shows current station tasks, progress, blockers, late work and task-level crew/equipment assignments. The Inventory view shows stock on hand and the status of scheduled incoming deliveries. Production results keep the selected period's totals and contributions visible.

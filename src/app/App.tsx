@@ -160,7 +160,7 @@ export function App(){
       {historyOpen&&inspectionOpen&&<History client={client} onClose={()=>{setHistoryOpen(false);closeInspection();}} onSelectAircraft={id=>{setSelectedId(id);setSelectedZone(null);setSelectedJobId(null);setInspectionOpen(true);follow(id);}}/>}
       {inspectionOpen&&!historyOpen?(selectedJobId!==null?<LogisticsInspector client={client} selectedId={selectedJobId} onSelect={setSelectedJobId} onClose={closeInspection} onFollow={id=>openLogistics(id,true)} onAircraft={follow}/>
         :<FleetInspector client={client} selectedId={selectedId} zoneId={selectedZone} onSelect={id=>{setSelectedId(id);setSelectedZone(null);}} onClose={closeInspection} onFocus={follow}/>)
-        :<button className="pilot-reopen" onClick={()=>setInspectionOpen(true)}>{selectedJobId!==null?'Receiving':'Aircraft tasks'}</button>}
+        :<button className="pilot-reopen" onClick={()=>setInspectionOpen(true)}>{selectedJobId!==null?'Inventory':'Aircraft tasks'}</button>}
       <Tour index={tourIndex} onBack={()=>focusTour(Math.max(0,(tourIndex??0)-1))} onNext={()=>focusTour((tourIndex??0)+1)} onExit={()=>setTourIndex(null)}/>
       {help&&<aside className="help-panel" aria-label="Camera instructions"><div className="help-title"><h2>Move around the model</h2><button onClick={()=>setHelp(false)}>Close</button></div>
         <dl><dt>Orbit</dt><dd>Left-drag</dd><dt>Pan</dt><dd>Right-drag or Shift + drag</dd><dt>Zoom</dt><dd>Scroll or + / −</dd><dt>Keyboard</dt><dd>Focus the model and hold WASD. Arrow keys pan; Home resets.</dd><dt>Follow</dt><dd>Select an aircraft, then Follow. Any camera input releases tracking.</dd></dl></aside>}

@@ -10,7 +10,7 @@ const paths:Record<Destination,string>={
   settings:'M4 4h16v16H4Z M8 8h8 M8 12h8 M8 16h8 M10 6v4 M14 10v4 M10 14v4',
   help:'M9 9a3 3 0 1 1 5 2c-2 1-2 2-2 3 M12 17h.01 M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',
 };
-const labels:Record<Destination,string>={campus:'Campus overview',process:'Production stages',receiving:'Receiving workspace',schedule:'Open master schedule',timeline:'Open flow timeline',results:'Production results',history:'Recorded history',help:'Camera instructions',settings:'Simulation settings'};
+const labels:Record<Destination,string>={campus:'Campus overview',process:'Production stages',receiving:'Inventory',schedule:'Open master schedule',timeline:'Open flow timeline',results:'Production results',history:'Recorded history',help:'Camera instructions',settings:'Simulation settings'};
 export function NavigationRail({active,onNavigate}:{active:Destination;onNavigate:(destination:Destination)=>void}){
   return <nav className="navigation-rail" aria-label="Workspace navigation">
     <span className="rail-brand" title="Assembly." aria-label="Assembly.">A<span>•</span></span>

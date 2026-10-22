@@ -1,10 +1,10 @@
 # Using scenario controls
 
-Open **Simulation settings** to edit a draft scenario. Changes take effect only after you apply and run them. Applying valid settings starts a new run from the plant's original start time and opening inventory. An invalid draft leaves the current run intact. The applied scenario shows its version, seed, and configuration fingerprint; the fingerprint identifies the inputs but is not a security signature.
+Open **Simulation settings** to edit a draft scenario. **Apply settings & restart** starts a fresh run paused at the plant's original start time and opening inventory. Close settings and press **Play** in the simulation controls to watch aircraft and work advance. **Calculate full horizon** in Run results is an optional batch calculation that skips watching the run unfold. An invalid draft leaves the current run intact. The applied scenario shows its version, seed, and configuration fingerprint; the fingerprint identifies the inputs but is not a security signature.
 
 ## Supply
 
-Choose a scheduled receipt and set its delay from 0 to 30 calendar days or its quantity from 0 to 200% of the original amount. The preview shows its new arrival and quantity. Only that receipt changes. Existing inventory, reservations, and consumed parts are not rewritten. A delayed receipt may have no effect when opening stock or another receipt covers demand. Zero quantity represents a real shortage.
+Choose a scheduled inventory delivery and set its delay from 0 to 30 calendar days or its quantity from 0 to 200% of the original amount. The preview shows its new arrival and quantity. A delivery is an inbound batch; it is not inventory already on hand. The batch becomes usable stock only after inspection, kitting, and forklift unloading. Existing inventory, reservations, and consumed parts are not rewritten. A delay may have no effect when opening stock or another delivery covers demand. Zero quantity represents a real shortage.
 
 ## Resources and work
 

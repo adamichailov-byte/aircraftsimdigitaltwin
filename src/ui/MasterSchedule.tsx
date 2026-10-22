@@ -40,7 +40,7 @@ export function MasterSchedule({client,onAircraft,onReceipt,onOpen,open,setOpen}
       {plan?.diagnosis&&<p className="schedule-plan-limit">Plan limit: {plan.diagnosis}. A dash means no feasible time was scheduled within the horizon.</p>}
       <div className="schedule-filters"><label>Show<select aria-label="Schedule filter" value={filter} onChange={e=>{setFilter(e.target.value);setLimit(60);}}>
         <option value="all">All activities</option><option value="active">Started / unfinished</option><option value="overdue">Behind plan</option>
-        <option value="aircraft">Aircraft work & tows</option><option value="receiving">Receiving jobs</option><option value="equipment">Equipment assignments</option>
+        <option value="aircraft">Aircraft work & tows</option><option value="receiving">Inventory delivery jobs</option><option value="equipment">Equipment assignments</option>
       </select></label><label>Find<input aria-label="Search schedule" placeholder="Aircraft, forklift, crane, crew…" value={search} onChange={e=>{setSearch(e.target.value);setLimit(60);}}/></label><span>{shown.length} activities</span></div>
       <div className="schedule-table-scroll" tabIndex={0} aria-label="Scheduled activities"><table><thead><tr><th>Aircraft / job · activity</th><th>Station / resources</th><th>Planned start → finish</th><th>Actual start → finish</th><th>Status</th></tr></thead>
         <tbody>{shown.slice(0,limit).map(({row,actual:time,status})=>{
@@ -48,7 +48,7 @@ export function MasterSchedule({client,onAircraft,onReceipt,onOpen,open,setOpen}
           const blockers=row.kind==='aircraft'?aircraft?.reasons:row.kind==='receiving'?job?.blockers:undefined;
           return <tr key={row.id} className={status.late?'schedule-late':''}>
             <td>{row.kind==='equipment'?<span className="schedule-owner">{row.owner.replaceAll('-',' ')}</span>
-              :<button disabled={row.kind==='aircraft'&&!aircraft} onClick={()=>inspect(row.kind,row.owner)}>{row.owner}</button>}<span>{row.label}</span></td>
+              :<button disabled={row.kind==='aircraft'&&!aircraft} onClick={()=>inspect(row.kind,row.owner)}>{row.kind==='receiving'?'Inventory delivery':row.owner}</button>}<span>{row.label}</span></td>
             <td><span>{row.station}</span><small>{row.resources.join(' · ')||'No crew / tool required'}</small></td>
             <td>{stamp(row.start)}<span>→ {stamp(row.finish)}</span></td><td>{stamp(time?.start)}<span>→ {stamp(time?.finish)}</span></td>
             <td><strong>{status.state==='overdue'?`Overdue ${delay(status.delay)}`:status.state==='complete'?(status.late?`Completed ${delay(status.delay)} late`:'Complete'):status.state==='active'?'In progress':row.id.includes('/repair-')||row.id.includes('/recheck-')?'Added rework':row.start==null?'Unscheduled':'Planned'}</strong>

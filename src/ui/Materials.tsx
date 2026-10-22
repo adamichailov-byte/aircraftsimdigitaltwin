@@ -18,7 +18,7 @@ export function Materials({fleet,aircraft,config,station,readOnly=false,onReceip
   };
   return <section className="materials-section" aria-label="Materials">
     <h3>Materials</h3>
-    <p className="material-note">Receipts become usable after inspection, kitting and a forklift drop in central stores. Rack fill represents aggregate available stock; bay distribution is abstracted.</p>
+    <p className="material-note">Incoming inventory becomes usable after inspection, kitting and a forklift drop in central stores. Rack fill represents aggregate available stock; bay distribution is abstracted.</p>
     {fleet.admissionBlockers.length>0&&<p className="flow-blocker">Admission held: major-section kit unavailable.</p>}
     {tasks.length===0?<p className="material-note">No material issue required at this station.</p>:tasks.map(task=><div key={task.id} className="material-task">
       <h4>{task.label}</h4>
@@ -32,8 +32,8 @@ export function Materials({fleet,aircraft,config,station,readOnly=false,onReceip
         const receipt=trace.some(r=>r.taskId===task.id&&r.state==='issued')?undefined:expected(sku),quarantine=stock(sku).reduce((n,l)=>n+l.quarantined,0);
         const handling=stock(sku).reduce((n,l)=>n+l.inHandling,0);
         return <div key={sku} className="material-note"><p>{[...new Set(stock(sku).map(l=>l.location))].join(' · ')||materialCatalog[sku]?.location||sku}{quarantine>0?` · ${quarantine} quarantined (unavailable)`:''}{handling>0?` · ${handling} awaiting handling (unavailable)`:''}</p>
-          {receipt&&<p>Next dock arrival: {date.format(receipt.at)} · {receipt.quantity} units before handling ({receipt.lots} {receipt.lots===1?'lot':'lots'}){receipt.at>config.recipe.end?' · beyond run horizon':''}.
-            <button disabled={readOnly||receipt.at>config.recipe.end} onClick={()=>onReceipt(receipt.at)}>{readOnly?'Return live to step':'Step to receipt'}</button></p>}
+          {receipt&&<p>Next inventory delivery: {date.format(receipt.at)} · {receipt.quantity} units before handling ({receipt.lots} {receipt.lots===1?'lot':'lots'}){receipt.at>config.recipe.end?' · beyond run horizon':''}.
+            <button disabled={readOnly||receipt.at>config.recipe.end} onClick={()=>onReceipt(receipt.at)}>{readOnly?'Return live to step':'Step to delivery'}</button></p>}
         </div>;
       })}
     </div>)}
@@ -53,31 +53,31 @@ export function LogisticsInspector({client,selectedId,onSelect,onClose,onFollow,
   const carrier=fleet?.logistics.jobs.find(j=>j.id===fleet.logistics.carrierId);
   const ready=queue.filter(q=>q.job&&!['complete','held'].includes(q.job.stage));
   const upcoming=queue.find(q=>!q.job);
-  return <aside className="inspector task-inspector" aria-label="Receiving and kit delivery">
-    <header className="inspector-heading"><div><span className="eyebrow">RECEIVING · FINITE HANDLING</span><h2>Kit delivery</h2></div><button aria-label="Close receiving" onClick={onClose}>Close</button></header>
-    <section className="receiving-queue" aria-label="Receiving job queue">
+  return <aside className="inspector task-inspector" aria-label="Inventory deliveries and handling">
+    <header className="inspector-heading"><div><span className="eyebrow">CURRENT STOCK · INCOMING DELIVERIES</span><h2>Inventory</h2></div><button aria-label="Close inventory" onClick={onClose}>Close</button></header>
+    <section className="receiving-queue" aria-label="Inventory delivery queue">
       <h3>Forklift dispatch</h3>
-      <p>{carrier?`${carrier.id} · ${carrier.stage} · ${carrier.state}`:ready.length?`Idle · ${ready.length} ${ready.length===1?'receipt is':'receipts are'} preparing or waiting. ${ready[0].job?.blockers.join(' · ')||'Inspection and kitting must finish before loading.'}`:
-        upcoming?`Idle · next dock arrival ${date.format(upcoming.receipt.at)}. Opening stock does not need this receiving trip.`:'Idle · all scheduled receiving work is finished or held.'}</p>
+      <p>{carrier?`${carrier.id} · ${carrier.stage} · ${carrier.state}`:ready.length?`Idle · ${ready.length} ${ready.length===1?'inventory delivery is':'inventory deliveries are'} preparing or waiting. ${ready[0].job?.blockers.join(' · ')||'Inspection and kitting must finish before loading.'}`:
+        upcoming?`Idle · next inventory delivery ${date.format(upcoming.receipt.at)}. Opening stock does not need this trip.`:'Idle · all scheduled inventory delivery work is finished or held.'}</p>
       {carrier&&<button onClick={()=>onFollow(carrier.id)}>Follow current assignment</button>}
     </section>
-    <label className="pilot-stage-select">Receipt<select aria-label="Receipt job" value={receipt?.id??''} onChange={e=>onSelect(e.target.value)}>
-      {!receipt&&<option value="">No scheduled receipts</option>}{client.config.materials.receipts.map(r=><option key={r.id} value={r.id}>{r.id}</option>)}
+    <label className="pilot-stage-select">Inventory delivery<select aria-label="Inventory delivery" value={receipt?.id??''} onChange={e=>onSelect(e.target.value)}>
+      {!receipt&&<option value="">No scheduled inventory deliveries</option>}{client.config.materials.receipts.map(r=><option key={r.id} value={r.id}>{date.format(r.at)} · {materialCatalog[r.lot.sku]?.label??r.lot.sku} · {r.lot.quantity} units</option>)}
     </select></label>
     {receipt?<>
       <p className="pilot-summary">{materialCatalog[receipt.lot.sku]?.label??receipt.lot.sku} · {receipt.lot.quantity} units · {receipt.lot.location}</p>
-      <p className="material-note">Dock arrival {date.format(receipt.at)}. {receipt.inspectionNotBefore?`Inspection window ${date.format(receipt.inspectionNotBefore)}.`:''}</p>
+      <p className="material-note">This is an incoming inventory delivery, not stock already on hand. Arrival {date.format(receipt.at)}. {receipt.inspectionNotBefore?`Inspection window ${date.format(receipt.inspectionNotBefore)}.`:''}</p>
       <div className={`handling-status${job?.blockers.length?' is-warning':''}`} role="status"><strong>{job?`${job.stage} · ${job.state}`:'Scheduled · not arrived'}</strong>
         {job?.blockers.map(reason=><p key={reason}>! {reason}</p>)}
       </div>
       <div className="handling-actions"><button disabled={!job||readOnly} onClick={()=>onFollow(receipt.id)}>Follow forklift / load</button>
         <button disabled={readOnly||busy||!fleet||!next||next>client.config.recipe.end} onClick={()=>next&&step(next)}>Next handling event</button>
         <button disabled={readOnly||busy||!fleet||fleet.instant>=client.config.recipe.end} onClick={()=>fleet&&step(fleet.instant+60000)}>Advance 1 minute</button>
-        {!job&&<button disabled={readOnly||busy||receipt.at>client.config.recipe.end} onClick={()=>step(receipt.at)}>Step to dock arrival</button>}
+        {!job&&<button disabled={readOnly||busy||receipt.at>client.config.recipe.end} onClick={()=>step(receipt.at)}>Step to delivery arrival</button>}
       </div>
       {job&&<><progress aria-label="Current handling stage progress" max={job.durationMs} value={job.durationMs-job.remainingWorkMs}/>
         <p className="material-note">{(job.remainingWorkMs/60000).toFixed(1)} working minutes remaining in this stage · {job.crewCount} assigned logistics crew.</p></>}
-      <dl className="handling-stock"><div><dt>Receipt units on hand</dt><dd>{lot?.onHand??0}</dd></div><div><dt>Awaiting handling</dt><dd>{lot?.inHandling??0}</dd></div>
+      <dl className="handling-stock"><div><dt>Usable inventory units</dt><dd>{lot?.onHand??0}</dd></div><div><dt>Awaiting handling</dt><dd>{lot?.inHandling??0}</dd></div>
         <div><dt>Usable from this lot</dt><dd>{lot?.available??0}</dd></div><div><dt>Issued from this lot</dt><dd>{lot?.consumed??0}</dd></div></dl>
       <p className="material-note">{job?.dropAt?`Usable drop completed ${date.format(job.dropAt)}. Stock can be issued at this same instant.`:'Arrival alone releases no stock. The unload completion releases usable quantities exactly once.'}</p>
       <ol className="handling-stages">{['inspection','kitting','loading','transit','unloading','returning'].map(stage=><li key={stage} aria-current={job?.stage===stage?'step':undefined}>
@@ -85,6 +85,6 @@ export function LogisticsInspector({client,selectedId,onSelect,onClose,onFollow,
       </li>)}</ol>
       {affected?.map(a=><button className="handling-aircraft" key={a.id} onClick={()=>onAircraft(a.id)}>Inspect {a.id} · waiting for {receipt.lot.sku}</button>)}
       {job?.dropAt!=null&&fleet?.aircraft.filter(a=>a.pilot.tasks.some(t=>t.taskId==='engines'&&t.startedAt===job.dropAt)).map(a=><button className="handling-aircraft" key={a.id} onClick={()=>onAircraft(a.id)}>Inspect {a.id} · engine task started at drop</button>)}
-    </>:<p className="material-note">Opening inventory is already usable. This run has no replenishment receipts.</p>}
+    </>:<p className="material-note">Opening inventory is already usable. No inventory deliveries are scheduled in this run.</p>}
   </aside>;
 }

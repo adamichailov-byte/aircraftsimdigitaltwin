@@ -2,9 +2,9 @@
 
 Open **Production results → Experiments** to run replications in a separate worker using a frozen copy of the applied scenario. Experiments leave the live aircraft, clock, history, and comparison baseline intact. Results remain in the browser session until a scenario reset or reload. Nothing is sent to a backend.
 
-The default simulation remains deterministic. Choose task-time variability and/or receipt-delay variability, select 1–30 replications and a starting seed, then run. The app lists the consecutive seeds. Running the same inputs and seeds reproduces the same outcomes. Existing inspection-failure settings still apply.
+The default simulation remains deterministic. Choose task-time variability and/or inventory delivery delays, select 1–30 replications and a starting seed, then run. The app lists the consecutive seeds. Running the same inputs and seeds reproduces the same outcomes. Existing inspection-failure settings still apply.
 
-Task-time variation uses a triangular distribution from 0.8× to 1.2×, with 1.0× as the mode. Samples are stable per aircraft, task, and attempt. Receipt delay adds a discrete 0–3 calendar days per receipt lot. Opening inventory, order releases, and quantities are not randomized. A sampled receipt may arrive beyond the run horizon and remain unusable during that run.
+Task-time variation uses a triangular distribution from 0.8× to 1.2×, with 1.0× as the mode. Samples are stable per aircraft, task, and attempt. Delivery delay adds a discrete 0–3 calendar days per batch. Opening inventory, order releases, and quantities are not randomized. A delayed delivery may arrive beyond the run horizon and remain unusable during that run.
 
 Random draws are keyed by the variability version, seed, and task or receipt identity. Adding work does not shift unrelated samples. Paired baseline and current experiments can use the same seed list and identity keys. Compare the shared assumptions and outputs before interpreting a delta.
 

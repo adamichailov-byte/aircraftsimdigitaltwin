@@ -35,7 +35,7 @@ export function ProcessList({ open, onToggle, selectedZoneId, onSelectZone }: {
           })}
         </ol>
       </section>)}
-      <p className="process-note">Synthetic teaching sequence. Bay 06 ground checks precede paint, flight-line acceptance, an offsite flight and delivery. Aircraft wait for finite parts, stations, shared crews, equipment and transport. Receipts require inspection, kitting and a forklift drop before use.</p>
+      <p className="process-note">Synthetic teaching sequence. Bay 06 ground checks precede paint, flight-line acceptance, an offsite flight and delivery. Aircraft wait for finite parts, stations, shared crews, equipment and transport. Incoming inventory deliveries require inspection, kitting and a forklift drop before stock can be used.</p>
     </>}
   </aside>;
 }

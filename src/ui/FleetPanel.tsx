@@ -19,7 +19,7 @@ export function FleetControls({client}:{client:FleetClient}){
   return <section className={`simulation-clock${historical?' is-historical':''}`} aria-label="Fleet simulation clock">
     <div className="calendar-reading"><span className="calendar-label">{client.config.name}</span>
       <time dateTime={new Date(fleet?.instant??client.config.recipe.start).toISOString()}>{date.format(fleet?.instant??client.config.recipe.start)}</time>
-      <span className="calendar-status" role="status">{historical?`Viewing recorded state · live at ${date.format(view.fleet?.instant??client.config.recipe.start)}`:view.error|| (busy?(view.progressInstant?`Calculating · ${date.format(view.progressInstant)}`:'Calculating…'):view.state==='cancelled'?'Calculation cancelled':fleet?.diagnosis||(fleet?.status==='complete'?'All orders complete':`${state?.shift??'Off shift'} · ${state?.status??'Starting'}`))}</span>
+      <span className="calendar-status" role="status">{historical?`Viewing recorded state · live at ${date.format(view.fleet?.instant??client.config.recipe.start)}`:view.error|| (busy?(view.progressInstant?`Advancing · ${date.format(view.progressInstant)}`:'Starting simulation…'):view.state==='cancelled'?'Simulation paused':fleet?.diagnosis||(fleet?.status==='complete'?'All orders complete':`${state?.shift??'Off shift'} · ${state?.status??'Starting'}`))}</span>
     </div>
     <div className="calendar-controls">
       <button disabled={stopped||busy||historical} onClick={()=>client.play(!clock.playing)} aria-label={clock.playing?'Pause simulation':'Play simulation'}>{clock.playing?'Pause':'Play'}</button>
