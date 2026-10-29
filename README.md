@@ -30,6 +30,10 @@ npm run preview
 
 For ready-to-import runs, see [Example scenarios](examples/README.md). User guides are in [docs](docs/).
 
+## Host a live demo
+
+This repository includes a GitHub Actions workflow that builds the app and publishes it to GitHub Pages whenever `main` is updated. To enable it, open the repository's **Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**. The demo will be available at [adamichailov-byte.github.io/aircraftdigitaltwin](https://adamichailov-byte.github.io/aircraftdigitaltwin/) after the first successful deployment. GitHub Pages sites are public, even when the repository itself is private.
+
 ## What the model represents
 
 The plant builds one fictional A-100 aircraft through a sequence of assembly bays, paint, acceptance checks, and delivery. Its discrete-event simulation models work tasks, shifts, finite crews and equipment, incoming inventory deliveries, station capacity, aircraft movement, and a shared production schedule. The 3D scene presents the current or historical state of that model.
