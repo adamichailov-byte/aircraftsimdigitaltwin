@@ -32,7 +32,7 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Build project site
-        run: npm run build -- --base=/aircraftdigitaltwin/
+        run: npm run build -- --base=/aircraftsimdigitaltwin/
 
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v4

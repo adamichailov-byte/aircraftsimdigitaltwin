@@ -32,7 +32,7 @@ For ready-to-import runs, see [Example scenarios](examples/README.md). User guid
 
 ## Host a live demo
 
-This repository includes a GitHub Actions workflow that builds the app and publishes it to GitHub Pages whenever `main` is updated. To enable it, open the repository's **Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**. The demo will be available at [adamichailov-byte.github.io/aircraftdigitaltwin](https://adamichailov-byte.github.io/aircraftdigitaltwin/) after the first successful deployment. GitHub Pages sites are public, even when the repository itself is private.
+This repository includes a GitHub Actions workflow that builds the app and publishes it to GitHub Pages whenever `main` is updated. To enable it, open the repository's **Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**. The demo will be available at [adamichailov-byte.github.io/aircraftsimdigitaltwin](https://adamichailov-byte.github.io/aircraftsimdigitaltwin/) after the first successful deployment. GitHub Pages sites are public, even when the repository itself is private.
 
 ## What the model represents
 
